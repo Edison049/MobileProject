@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:background="#2a2a2a">
+
+    <TextView
+        android:id="@+id/order_movie_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="电影标题"
+        android:textSize="14sp"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/order_movie_price"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="100积分"
+        android:textSize="14sp"
+        android:textColor="#E50914"
+        android:textStyle="bold" />
+
+</LinearLayout>
