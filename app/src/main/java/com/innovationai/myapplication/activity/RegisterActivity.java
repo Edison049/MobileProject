@@ -6,24 +6,16 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-import com.google.firebase.auth.AuthResult;
-// import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.innovationai.myapplication.R;
-import com.innovationai.myapplication.model.User;
-import com.innovationai.myapplication.util.Constants;
-import com.innovationai.myapplication.util.FirebaseUtil;
-import com.innovationai.myapplication.util.TempAuthUtil;
+import com.innovationai.myapplication.data.AppRepository;
 import com.innovationai.myapplication.util.Utils;
 
 /**
  * 注册Activity
- * 处理新用户注册逻辑，创建Firebase账户并在Firestore中存储用户详细信息
+ * 处理新用户注册逻辑
  */
 public class RegisterActivity extends AppCompatActivity {
 
@@ -111,8 +103,20 @@ public class RegisterActivity extends AppCompatActivity {
         registerButton.setEnabled(false);
         registerButton.setText("注册中...");
 
-        // 创建Firebase账户
-        createFirebaseAccount(email, password, name, age);
+        AppRepository.getInstance().register(this, name, age, email, password,
+                new AppRepository.DataCallback<>() {
+                    @Override
+                    public void onSuccess(com.innovationai.myapplication.model.User data) {
+                        Utils.showToast(RegisterActivity.this, "注册成功！欢迎加入电影世界！");
+                        navigateToMainMenu();
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        Utils.showToast(RegisterActivity.this, errorMessage);
+                        resetRegisterButton();
+                    }
+                });
     }
 
     /**
@@ -179,44 +183,6 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         return isValid;
-    }
-
-    /**
-     * 创建账户（使用临时认证）
-     * @param email 邮箱
-     * @param password 密码
-     * @param name 姓名
-     * @param age 年龄
-     */
-    private void createFirebaseAccount(String email, String password, String name, int age) {
-        // 使用临时认证
-        if (TempAuthUtil.register(this, name, age, email, password)) {
-            Utils.showToast(RegisterActivity.this, "注册成功！欢迎加入电影世界！");
-            navigateToMainMenu();
-        } else {
-            Utils.showToast(RegisterActivity.this, "注册失败");
-            resetRegisterButton();
-        }
-    }
-
-    /*
-    private void saveUserDetails(String name, int age, String email) {
-        // Firebase相关代码暂时注释
-    }
-    */
-
-    /**
-     * 处理注册错误
-     * @param exception 异常信息
-     */
-    private void handleRegistrationError(Exception exception) {
-        String errorMessage = "注册失败";
-        
-        if (exception != null) {
-            errorMessage = exception.getMessage();
-        }
-        
-        Utils.showToast(this, errorMessage);
     }
 
     /**

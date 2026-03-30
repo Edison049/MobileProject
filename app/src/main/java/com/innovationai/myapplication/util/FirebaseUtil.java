@@ -1,100 +1,67 @@
 package com.innovationai.myapplication.util;
 
-// 暂时注释Firebase导入，等待google-services.json配置
-/*
-import com.google.firebase.auth.FirebaseAuth;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.text.TextUtils;
+
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.storage.FirebaseStorage;
-*/
 
 /**
  * Firebase工具类
- * 用于统一管理Firebase各个服务的实例
- * 单例模式确保全局只有一个Firebase实例
+ * 当前主要负责判断是否已完成Firebase配置并返回Firestore实例
  */
-public class FirebaseUtil {
-    // 暂时注释Firebase实例，等待配置完成
-    /*
-    private static FirebaseAuth mAuth;
-    private static FirebaseFirestore db;
-    private static FirebaseStorage storage;
-    */
+public final class FirebaseUtil {
+    private static FirebaseFirestore firestore;
 
-    /**
-     * 获取Firebase认证实例
-     * @return FirebaseAuth实例
-     */
-    public static Object getAuth() { // 使用Object类型避免编译错误
-        /*
-        if (mAuth == null) {
-            mAuth = FirebaseAuth.getInstance();
-        }
-        return mAuth;
-        */
-        return null; // 临时返回null
+    private FirebaseUtil() {
     }
 
-    /**
-     * 获取Firestore数据库实例
-     * @return FirebaseFirestore实例
-     */
-    public static Object getFirestore() { // 使用Object类型避免编译错误
-        /*
-        if (db == null) {
-            db = FirebaseFirestore.getInstance();
+    public static boolean isFirebaseConfigured(Context context) {
+        int appIdRes = context.getResources()
+                .getIdentifier("google_app_id", "string", context.getPackageName());
+        if (appIdRes == 0) {
+            return false;
         }
-        return db;
-        */
-        return null; // 临时返回null
+
+        String googleAppId = context.getString(appIdRes);
+        return !TextUtils.isEmpty(googleAppId);
     }
 
-    /**
-     * 获取Firebase Storage实例
-     * @return FirebaseStorage实例
-     */
-    public static Object getStorage() { // 使用Object类型避免编译错误
-        /*
-        if (storage == null) {
-            storage = FirebaseStorage.getInstance();
+    public static FirebaseFirestore getFirestore(Context context) {
+        if (!isFirebaseConfigured(context)) {
+            return null;
         }
-        return storage;
-        */
-        return null; // 临时返回null
+
+        if (FirebaseApp.getApps(context).isEmpty()) {
+            FirebaseApp.initializeApp(context);
+        }
+
+        if (firestore == null) {
+            firestore = FirebaseFirestore.getInstance();
+        }
+        return firestore;
     }
 
-    /**
-     * 获取当前登录用户的UID
-     * @return 用户UID，未登录则返回null
-     */
-    public static String getCurrentUserId() {
-        /*
-        if (mAuth == null) {
-            mAuth = FirebaseAuth.getInstance();
+    public static boolean hasUsableNetwork(Context context) {
+        ConnectivityManager connectivityManager = context.getSystemService(ConnectivityManager.class);
+        if (connectivityManager == null) {
+            return false;
         }
-        return mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getUid() : null;
-        */
-        return null; // 临时返回null
-    }
 
-    /**
-     * 检查用户是否已登录
-     * @return true表示已登录，false表示未登录
-     */
-    public static boolean isUserLoggedIn() {
-        // 临时返回false，表示未登录
-        return false;
-    }
-
-    /**
-     * 退出登录
-     */
-    public static void signOut() {
-        /*
-        if (mAuth == null) {
-            mAuth = FirebaseAuth.getInstance();
+        Network network = connectivityManager.getActiveNetwork();
+        if (network == null) {
+            return false;
         }
-        mAuth.signOut();
-        */
-        // 临时空实现
+
+        NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+        if (capabilities == null) {
+            return false;
+        }
+
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 }

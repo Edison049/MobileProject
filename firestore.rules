@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 课堂演示版规则：
+    // 当前项目为了支持管理员直接在 App 内增删用户与电影，
+    // 会从客户端直接读写 Firestore。
+    // 因此这里先使用开发测试级别规则，便于联调。
+    //
+    // 如果后续要做成真正安全的线上版本，
+    // 应改造为 Firebase Authentication + Cloud Functions / Admin SDK。
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

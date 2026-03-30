@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.innovationai.myapplication.activity.LoginActivity;
 import com.innovationai.myapplication.activity.MainMenuActivity;
-import com.innovationai.myapplication.util.FirebaseUtil;
+import com.innovationai.myapplication.data.AppRepository;
 
 /**
  * 启动Activity
@@ -23,33 +23,36 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 延迟跳转到下一个页面
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                navigateToNextScreen();
-            }
-        }, SPLASH_DELAY);
+        // 启动页期间初始化数据源，再决定进入登录页还是主菜单
+        new Handler().postDelayed(this::initializeAndNavigate, SPLASH_DELAY);
     }
 
     /**
-     * 根据用户登录状态导航到相应页面
+     * 初始化数据后，根据会话状态导航到相应页面
      */
+    private void initializeAndNavigate() {
+        AppRepository.getInstance().initialize(this, new AppRepository.ActionCallback() {
+            @Override
+            public void onSuccess() {
+                navigateToNextScreen();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                android.widget.Toast.makeText(MainActivity.this,
+                        errorMessage,
+                        android.widget.Toast.LENGTH_SHORT).show();
+                navigateToNextScreen();
+            }
+        });
+    }
+
     private void navigateToNextScreen() {
-        try {
-            Intent intent;
-            
-            // 由于Firebase尚未配置，暂时总是跳转到登录页面
-            intent = new Intent(MainActivity.this, LoginActivity.class);
-            
-            startActivity(intent);
-            finish(); // 关闭启动Activity
-        } catch (Exception e) {
-            // 如果出现异常，显示错误信息并跳转到登录页面
-            android.widget.Toast.makeText(this, "应用初始化中，请稍后...", android.widget.Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-            startActivity(intent);
-            finish();
-        }
+        Intent intent = AppRepository.getInstance().isLoggedIn(this)
+                ? new Intent(MainActivity.this, MainMenuActivity.class)
+                : new Intent(MainActivity.this, LoginActivity.class);
+
+        startActivity(intent);
+        finish();
     }
 }

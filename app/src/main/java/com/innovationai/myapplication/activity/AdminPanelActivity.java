@@ -1,0 +1,310 @@
+package com.innovationai.myapplication.activity;
+
+import android.os.Bundle;
+import android.text.InputType;
+import android.view.LayoutInflater;
+import android.widget.CheckBox;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.innovationai.myapplication.R;
+import com.innovationai.myapplication.adapter.AdminMovieAdapter;
+import com.innovationai.myapplication.adapter.AdminUserAdapter;
+import com.innovationai.myapplication.data.AppRepository;
+import com.innovationai.myapplication.model.Movie;
+import com.innovationai.myapplication.model.User;
+import com.innovationai.myapplication.util.Constants;
+import com.innovationai.myapplication.util.MovieMediaUtil;
+import com.innovationai.myapplication.util.Utils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * 管理员后台
+ * 支持增删电影与用户
+ */
+public class AdminPanelActivity extends AppCompatActivity {
+    private final AppRepository repository = AppRepository.getInstance();
+
+    private ImageButton backButton;
+    private TextView modeText;
+    private MaterialButton addMovieButton;
+    private MaterialButton addUserButton;
+    private RecyclerView moviesRecycler;
+    private RecyclerView usersRecycler;
+
+    private AdminMovieAdapter movieAdapter;
+    private AdminUserAdapter userAdapter;
+    private final List<Movie> movies = new ArrayList<>();
+    private final List<User> users = new ArrayList<>();
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_admin_panel);
+
+        initViews();
+        setupRecyclerViews();
+        setupListeners();
+        verifyAdminAndLoad();
+    }
+
+    private void initViews() {
+        backButton = findViewById(R.id.back_button);
+        modeText = findViewById(R.id.admin_mode_text);
+        addMovieButton = findViewById(R.id.add_movie_button);
+        addUserButton = findViewById(R.id.add_user_button);
+        moviesRecycler = findViewById(R.id.admin_movies_recycler);
+        usersRecycler = findViewById(R.id.admin_users_recycler);
+    }
+
+    private void setupRecyclerViews() {
+        moviesRecycler.setLayoutManager(new LinearLayoutManager(this));
+        usersRecycler.setLayoutManager(new LinearLayoutManager(this));
+
+        movieAdapter = new AdminMovieAdapter(movies, this::confirmDeleteMovie);
+        userAdapter = new AdminUserAdapter(users, this::confirmDeleteUser);
+
+        moviesRecycler.setAdapter(movieAdapter);
+        usersRecycler.setAdapter(userAdapter);
+    }
+
+    private void setupListeners() {
+        backButton.setOnClickListener(v -> finish());
+        addMovieButton.setOnClickListener(v -> showAddMovieDialog());
+        addUserButton.setOnClickListener(v -> showAddUserDialog());
+    }
+
+    private void verifyAdminAndLoad() {
+        repository.loadCurrentUser(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                if (!data.isAdmin()) {
+                    Utils.showToast(AdminPanelActivity.this, "只有管理员可以进入后台");
+                    finish();
+                    return;
+                }
+                modeText.setText("当前数据模式：" + repository.getDataModeLabel(AdminPanelActivity.this));
+                loadAllData();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(AdminPanelActivity.this, errorMessage);
+                finish();
+            }
+        });
+    }
+
+    private void loadAllData() {
+        repository.loadMovies(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(List<Movie> data) {
+                movies.clear();
+                movies.addAll(data);
+                movieAdapter.updateMovies(movies);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(AdminPanelActivity.this, errorMessage);
+            }
+        });
+
+        repository.loadUsers(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(List<User> data) {
+                users.clear();
+                users.addAll(data);
+                userAdapter.updateUsers(users);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(AdminPanelActivity.this, errorMessage);
+            }
+        });
+    }
+
+    private void showAddMovieDialog() {
+        android.view.View dialogView = LayoutInflater.from(this)
+                .inflate(R.layout.dialog_admin_movie, null, false);
+
+        TextInputEditText titleInput = dialogView.findViewById(R.id.movie_title_input);
+        TextInputEditText descriptionInput = dialogView.findViewById(R.id.movie_description_input);
+        TextInputEditText genreInput = dialogView.findViewById(R.id.movie_genre_input);
+        TextInputEditText directorInput = dialogView.findViewById(R.id.movie_director_input);
+        TextInputEditText castInput = dialogView.findViewById(R.id.movie_cast_input);
+        TextInputEditText priceInput = dialogView.findViewById(R.id.movie_price_input);
+        TextInputEditText ratingInput = dialogView.findViewById(R.id.movie_rating_input);
+        TextInputEditText posterInput = dialogView.findViewById(R.id.movie_poster_input);
+        TextInputEditText videoInput = dialogView.findViewById(R.id.movie_video_input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("添加电影")
+                .setView(dialogView)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String title = textOf(titleInput);
+                    String description = textOf(descriptionInput);
+                    String genre = textOf(genreInput);
+                    String director = textOf(directorInput);
+                    String cast = textOf(castInput);
+                    String posterUrl = textOf(posterInput);
+                    String videoUrl = textOf(videoInput);
+
+                    if (title.isEmpty() || description.isEmpty() || genre.isEmpty()) {
+                        Utils.showToast(this, "请至少填写标题、简介和类型");
+                        return;
+                    }
+
+                    int price;
+                    float rating;
+                    try {
+                        price = Integer.parseInt(textOf(priceInput));
+                        rating = Float.parseFloat(textOf(ratingInput));
+                    } catch (NumberFormatException e) {
+                        Utils.showToast(this, "价格和评分必须是有效数字");
+                        return;
+                    }
+
+                    Movie movie = new Movie();
+                    movie.setId("movie_" + UUID.randomUUID().toString().replace("-", ""));
+                    movie.setTitle(title);
+                    movie.setDescription(description);
+                    movie.setGenre(genre);
+                    movie.setDirector(director);
+                    movie.setCast(cast);
+                    movie.setPrice(price);
+                    movie.setRating(rating);
+                    movie.setPosterUrl(posterUrl.isEmpty()
+                            ? MovieMediaUtil.drawableRef("ic_launcher_foreground")
+                            : posterUrl);
+                    movie.setPreviewVideoUrl(videoUrl.isEmpty()
+                            ? MovieMediaUtil.rawRef("seabird1")
+                            : videoUrl);
+
+                    repository.addMovie(this, movie, new AppRepository.ActionCallback() {
+                        @Override
+                        public void onSuccess() {
+                            Utils.showToast(AdminPanelActivity.this, "电影已添加");
+                            loadAllData();
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            Utils.showToast(AdminPanelActivity.this, errorMessage);
+                        }
+                    });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showAddUserDialog() {
+        android.view.View dialogView = LayoutInflater.from(this)
+                .inflate(R.layout.dialog_admin_user, null, false);
+
+        TextInputEditText nameInput = dialogView.findViewById(R.id.user_name_input);
+        TextInputEditText ageInput = dialogView.findViewById(R.id.user_age_input);
+        TextInputEditText emailInput = dialogView.findViewById(R.id.user_email_input);
+        TextInputEditText passwordInput = dialogView.findViewById(R.id.user_password_input);
+        TextInputEditText creditsInput = dialogView.findViewById(R.id.user_credits_input);
+        CheckBox adminCheckBox = dialogView.findViewById(R.id.user_admin_checkbox);
+
+        new AlertDialog.Builder(this)
+                .setTitle("添加用户")
+                .setView(dialogView)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String name = textOf(nameInput);
+                    String email = textOf(emailInput);
+                    String password = textOf(passwordInput);
+                    if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                        Utils.showToast(this, "请完整填写用户名、邮箱和密码");
+                        return;
+                    }
+
+                    int age;
+                    int credits;
+                    try {
+                        age = Integer.parseInt(textOf(ageInput));
+                        credits = Integer.parseInt(textOf(creditsInput));
+                    } catch (NumberFormatException e) {
+                        Utils.showToast(this, "年龄和积分必须是有效数字");
+                        return;
+                    }
+
+                    repository.createUser(this, name, age, email, password, credits,
+                            adminCheckBox.isChecked() ? Constants.ROLE_ADMIN : Constants.ROLE_USER,
+                            false,
+                            new AppRepository.DataCallback<>() {
+                                @Override
+                                public void onSuccess(User data) {
+                                    Utils.showToast(AdminPanelActivity.this, "用户已添加");
+                                    loadAllData();
+                                }
+
+                                @Override
+                                public void onError(String errorMessage) {
+                                    Utils.showToast(AdminPanelActivity.this, errorMessage);
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void confirmDeleteMovie(Movie movie) {
+        new AlertDialog.Builder(this)
+                .setTitle("删除电影")
+                .setMessage("确认删除《" + movie.getTitle() + "》吗？删除后电影列表将不再显示。")
+                .setPositiveButton("删除", (dialog, which) -> repository.deleteMovie(this, movie.getId(),
+                        new AppRepository.ActionCallback() {
+                            @Override
+                            public void onSuccess() {
+                                Utils.showToast(AdminPanelActivity.this, "电影已删除");
+                                loadAllData();
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                Utils.showToast(AdminPanelActivity.this, errorMessage);
+                            }
+                        }))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void confirmDeleteUser(User user) {
+        new AlertDialog.Builder(this)
+                .setTitle("删除用户")
+                .setMessage("确认停用用户 " + user.getName() + " 吗？停用后该用户将无法再次登录。")
+                .setPositiveButton("删除", (dialog, which) -> repository.deleteUser(this, user.getUid(),
+                        new AppRepository.ActionCallback() {
+                            @Override
+                            public void onSuccess() {
+                                Utils.showToast(AdminPanelActivity.this, "用户已删除");
+                                loadAllData();
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                Utils.showToast(AdminPanelActivity.this, errorMessage);
+                            }
+                        }))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private String textOf(TextInputEditText editText) {
+        return editText.getText() == null ? "" : editText.getText().toString().trim();
+    }
+}

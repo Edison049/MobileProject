@@ -11,10 +11,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.innovationai.myapplication.R;
 import com.innovationai.myapplication.adapter.CartAdapter;
+import com.innovationai.myapplication.data.AppRepository;
 import com.innovationai.myapplication.model.CartItem;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
-import com.innovationai.myapplication.util.TempAuthUtil;
 import com.innovationai.myapplication.util.Utils;
 import java.util.List;
 
@@ -23,6 +23,7 @@ import java.util.List;
  * 管理用户购物车中的电影项目
  */
 public class CartActivity extends AppCompatActivity {
+    private final AppRepository repository = AppRepository.getInstance();
 
     // UI组件
     private ImageButton backButton;
@@ -144,14 +145,18 @@ public class CartActivity extends AppCompatActivity {
      * 加载用户信息
      */
     private void loadUserInfo() {
-        String userName = TempAuthUtil.getCurrentUserName(this);
-        int credits = TempAuthUtil.getCurrentUserCredits(this);
-        
-        if (!userName.isEmpty()) {
-            currentUser = new User();
-            currentUser.setName(userName);
-            currentUser.setCredits(credits);
-        }
+        repository.loadCurrentUser(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                currentUser = null;
+                Utils.showToast(CartActivity.this, errorMessage);
+            }
+        });
     }
 
     /**
@@ -190,27 +195,27 @@ public class CartActivity extends AppCompatActivity {
      * 完成购买
      */
     private void completePurchase() {
-        if (currentUser == null || cartItems == null) return;
+        if (currentUser == null || cartItems == null) {
+            return;
+        }
 
-        int totalAmount = CartManager.getInstance().getTotalAmount();
-        
-        // 扣除积分
-        int newCredits = currentUser.getCredits() - totalAmount;
-        TempAuthUtil.updateUserCredits(this, newCredits);
-        
-        // 清空购物车
-        CartManager.getInstance().clearCart();
-        
-        // 更新用户对象
-        currentUser.setCredits(newCredits);
-        
-        // 显示成功消息
-        Utils.showToast(this, "购买成功！剩余积分: " + newCredits);
-        
-        // 刷新显示
-        loadCartData();
-        
-        // 返回主菜单
-        finish();
+        checkoutButton.setEnabled(false);
+        repository.checkoutCart(this, cartItems, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+                CartManager.getInstance().clearCart();
+                Utils.showToast(CartActivity.this, "购买成功！剩余积分: " + data.getCredits());
+                loadCartData();
+                checkoutButton.setEnabled(true);
+                finish();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                checkoutButton.setEnabled(true);
+                Utils.showToast(CartActivity.this, errorMessage);
+            }
+        });
     }
 }

@@ -4,28 +4,18 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.button.MaterialButton;
-// import com.google.firebase.firestore.FirebaseFirestore;
-// import com.google.firebase.firestore.Query;
-// import com.google.firebase.firestore.QueryDocumentSnapshot;
-// import com.google.firebase.firestore.QuerySnapshot;
 import com.innovationai.myapplication.R;
 import com.innovationai.myapplication.adapter.MovieAdapter;
+import com.innovationai.myapplication.data.AppRepository;
 import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
-import com.innovationai.myapplication.util.Constants;
-import com.innovationai.myapplication.util.FirebaseUtil;
-import com.innovationai.myapplication.util.TempAuthUtil;
 import com.innovationai.myapplication.util.Utils;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +25,7 @@ import java.util.List;
  * 展示Netflix风格的电影列表，支持分类浏览和搜索功能
  */
 public class MainMenuActivity extends AppCompatActivity {
+    private final AppRepository repository = AppRepository.getInstance();
 
     // UI组件
     private TextView userNameText;
@@ -157,20 +148,22 @@ public class MainMenuActivity extends AppCompatActivity {
     }
 
     /**
-     * 加载用户信息（使用临时认证）
+     * 加载当前用户信息
      */
     private void loadUserInfo() {
-        // 使用临时认证获取用户信息
-        String userName = TempAuthUtil.getCurrentUserName(this);
-        int credits = TempAuthUtil.getCurrentUserCredits(this);
-        
-        if (!userName.isEmpty()) {
-            // 创建临时用户对象用于显示
-            currentUser = new User();
-            currentUser.setName(userName);
-            currentUser.setCredits(credits);
-            updateUserInfoDisplay();
-        }
+        repository.loadCurrentUser(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+                updateUserInfoDisplay();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(MainMenuActivity.this, errorMessage);
+                navigateToLogin();
+            }
+        });
     }
 
     /**
@@ -184,53 +177,41 @@ public class MainMenuActivity extends AppCompatActivity {
     }
 
     /**
-     * 加载电影数据（使用模拟数据）
+     * 加载电影数据
      */
     private void loadMoviesData() {
-        // 使用模拟电影数据
-        createMockMovies();
-        
-        // 更新适配器
-        actionMoviesAdapter.updateMovies(actionMoviesList);
-        comedyMoviesAdapter.updateMovies(comedyMoviesList);
-        dramaMoviesAdapter.updateMovies(dramaMoviesList);
-    }
-    
-    /**
-     * 创建模拟电影数据
-     */
-    private void createMockMovies() {
-        allMoviesList.clear();
-        actionMoviesList.clear();
-        comedyMoviesList.clear();
-        dramaMoviesList.clear();
-        
-        // 动作片 - 使用本地图片
-        Movie avengers = new Movie("1", "复仇者联盟 4", "超级英雄们集结对抗灭霸", 150,
-            R.drawable.avengers4, "https://example.com/trailer.mp4",
-            "Action", 8.5f, "Anthony and Joe Russo", "小罗伯特·唐尼，克里斯·埃文斯");
-        actionMoviesList.add(avengers);
-        allMoviesList.add(avengers);
-                
-        Movie fast9 = new Movie("2", "速度与激情 9", "多米尼克和他的家人面临新的威胁", 120,
-            R.drawable.fast_and_furious, "https://example.com/trailer.mp4",
-            "动作", 7.2f, "林诣彬", "范·迪塞尔，米歇尔·罗德里格兹");
-        actionMoviesList.add(fast9);
-        allMoviesList.add(fast9);
-        
-        // 喜剧片
-        Movie hangover = new Movie("3", "宿醉", "四个朋友拉斯维加斯狂欢后的疯狂经历", 80,
-            "https://example.com/hangover.jpg", "https://example.com/trailer.mp4",
-            "喜剧", 7.8f, "托德·菲利普斯", "布莱德利·库珀,艾德·赫尔姆斯");
-        comedyMoviesList.add(hangover);
-        allMoviesList.add(hangover);
-        
-        // 剧情片
-        Movie shawshank = new Movie("4", "肖申克的救赎", "银行家安迪在监狱中的希望之旅", 100,
-            "https://example.com/shawshank.jpg", "https://example.com/trailer.mp4",
-            "剧情", 9.7f, "弗兰克·德拉邦特", "蒂姆·罗宾斯,摩根·弗里曼");
-        dramaMoviesList.add(shawshank);
-        allMoviesList.add(shawshank);
+        repository.loadMovies(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(List<Movie> data) {
+                allMoviesList.clear();
+                actionMoviesList.clear();
+                comedyMoviesList.clear();
+                dramaMoviesList.clear();
+
+                for (Movie movie : data) {
+                    allMoviesList.add(movie);
+                    String genre = movie.getGenre() == null ? "" : movie.getGenre().toLowerCase();
+                    if (genre.contains("action") || genre.contains("动作")) {
+                        actionMoviesList.add(movie);
+                    } else if (genre.contains("comedy") || genre.contains("喜剧")) {
+                        comedyMoviesList.add(movie);
+                    } else if (genre.contains("drama") || genre.contains("剧情")) {
+                        dramaMoviesList.add(movie);
+                    } else {
+                        actionMoviesList.add(movie);
+                    }
+                }
+
+                actionMoviesAdapter.updateMovies(actionMoviesList);
+                comedyMoviesAdapter.updateMovies(comedyMoviesList);
+                dramaMoviesAdapter.updateMovies(dramaMoviesList);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(MainMenuActivity.this, errorMessage);
+            }
+        });
     }
 
     /**
@@ -313,5 +294,12 @@ public class MainMenuActivity extends AppCompatActivity {
         } else {
             // 隐藏徽章
         }
+    }
+
+    private void navigateToLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 }

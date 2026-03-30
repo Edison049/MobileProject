@@ -51,7 +51,7 @@
             android:id="@+id/email_edit_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="邮箱地址"
+            android:hint="用户名或邮箱"
             android:inputType="textEmailAddress"
             android:textColor="#FFFFFF"
             android:textColorHint="#B3B3B3" />
@@ -112,7 +112,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="测试账户:\nMary: mary@example.com / mary123\nJohn: john@example.com / john123"
+        android:text="测试账户:\nAdmin: admin@example.com / admin123\nMary: mary@example.com / mary123\nJohn: john@example.com / john123"
         android:textColor="#B3B3B3"
         android:textSize="12sp"
         android:gravity="center"

@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
-    // id("com.google.gms.google-services") // 暂时注释，等待google-services.json文件
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {

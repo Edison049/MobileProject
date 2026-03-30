@@ -1,6 +1,7 @@
 package com.innovationai.myapplication.model;
 
 import com.google.firebase.Timestamp;
+import com.innovationai.myapplication.util.Constants;
 
 /**
  * 用户模型类
@@ -12,7 +13,10 @@ public class User {
     private String name;          // 用户姓名
     private int age;              // 用户年龄
     private String email;         // 用户邮箱
+    private String passwordHash;  // 密码哈希
     private int credits;          // 用户积分余额
+    private String role;          // 角色：admin / user
+    private boolean active = true;// 是否有效
     private Timestamp createdAt;  // 账户创建时间
 
     // 无参构造函数（Firebase序列化需要）
@@ -20,12 +24,16 @@ public class User {
     }
 
     // 完整构造函数
-    public User(String uid, String name, int age, String email, int credits, Timestamp createdAt) {
+    public User(String uid, String name, int age, String email, String passwordHash,
+                int credits, String role, boolean active, Timestamp createdAt) {
         this.uid = uid;
         this.name = name;
         this.age = age;
         this.email = email;
+        this.passwordHash = passwordHash;
         this.credits = credits;
+        this.role = role;
+        this.active = active;
         this.createdAt = createdAt;
     }
 
@@ -62,12 +70,40 @@ public class User {
         this.email = email;
     }
 
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public int getCredits() {
         return credits;
     }
 
     public void setCredits(int credits) {
         this.credits = credits;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public boolean isAdmin() {
+        return Constants.ROLE_ADMIN.equalsIgnoreCase(role);
     }
 
     public Timestamp getCreatedAt() {
@@ -85,6 +121,8 @@ public class User {
                 ", name='" + name + '\'' +
                 ", age=" + age +
                 ", email='" + email + '\'' +
+                ", role='" + role + '\'' +
+                ", active=" + active +
                 ", credits=" + credits +
                 ", createdAt=" + createdAt +
                 '}';

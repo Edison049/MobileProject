@@ -22,6 +22,7 @@ public class Constants {
 
     // 默认用户积分
     public static final int DEFAULT_USER_CREDITS = 1000;
+    public static final int DEFAULT_TOP_UP_AMOUNT = 100;
 
     // 测试账户信息（学校要求的固定账户）
     public static final String TEST_USER_MARY_EMAIL = "mary@example.com";
@@ -31,6 +32,16 @@ public class Constants {
     public static final String TEST_USER_JOHN_EMAIL = "john@example.com";
     public static final String TEST_USER_JOHN_PASSWORD = "john123";
     public static final String TEST_USER_JOHN_NAME = "john";
+
+    // 管理员账户
+    public static final String ADMIN_USER_ID = "admin_default";
+    public static final String ADMIN_USER_EMAIL = "admin@example.com";
+    public static final String ADMIN_USER_PASSWORD = "admin123";
+    public static final String ADMIN_USER_NAME = "admin";
+
+    // 角色
+    public static final String ROLE_ADMIN = "admin";
+    public static final String ROLE_USER = "user";
 
     // 网络请求超时时间（毫秒）
     public static final int NETWORK_TIMEOUT = 10000;

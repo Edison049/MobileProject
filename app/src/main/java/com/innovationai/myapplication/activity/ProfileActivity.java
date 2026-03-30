@@ -8,16 +8,22 @@ import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.innovationai.myapplication.R;
+import com.innovationai.myapplication.data.AppRepository;
+import com.innovationai.myapplication.model.Order;
+import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
-import com.innovationai.myapplication.util.TempAuthUtil;
 import com.innovationai.myapplication.util.Utils;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+
+import java.util.List;
 
 /**
  * 个人资料Activity
  * 显示用户详细信息和统计
  */
 public class ProfileActivity extends AppCompatActivity {
+    private final AppRepository repository = AppRepository.getInstance();
 
     // UI组件
     private ImageButton backButton;
@@ -27,7 +33,12 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView creditsBalance;
     private TextView cartCount;
     private TextView ordersCount;
+    private TextView accountRoleText;
+    private TextView dataModeText;
+    private MaterialButton topUpButton;
+    private MaterialButton adminPanelButton;
     private MaterialButton logoutButton;
+    private User currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +73,10 @@ public class ProfileActivity extends AppCompatActivity {
         creditsBalance = findViewById(R.id.credits_balance);
         cartCount = findViewById(R.id.cart_count);
         ordersCount = findViewById(R.id.orders_count);
+        accountRoleText = findViewById(R.id.account_role_text);
+        dataModeText = findViewById(R.id.data_mode_text);
+        topUpButton = findViewById(R.id.top_up_button);
+        adminPanelButton = findViewById(R.id.admin_panel_button);
         logoutButton = findViewById(R.id.logout_button);
     }
 
@@ -70,7 +85,11 @@ public class ProfileActivity extends AppCompatActivity {
      */
     private void setupClickListeners() {
         backButton.setOnClickListener(v -> finish());
-        
+        topUpButton.setOnClickListener(v -> showTopUpDialog());
+        adminPanelButton.setOnClickListener(v -> {
+            Intent intent = new Intent(ProfileActivity.this, AdminPanelActivity.class);
+            startActivity(intent);
+        });
         logoutButton.setOnClickListener(v -> confirmLogout());
     }
 
@@ -78,24 +97,90 @@ public class ProfileActivity extends AppCompatActivity {
      * 加载用户信息
      */
     private void loadUserInfo() {
-        String userName = TempAuthUtil.getCurrentUserName(this);
-        String userEmail = TempAuthUtil.getCurrentUserEmail(this); // 假设有这个方法
-        int credits = TempAuthUtil.getCurrentUserCredits(this);
-        
-        // 显示用户基本信息
-        userNameDisplay.setText(userName);
-        userEmailDisplay.setText(userEmail != null ? userEmail : userName + "@example.com");
-        creditsBalance.setText(String.valueOf(credits));
-        
-        // 显示统计数据
-        CartManager cartManager = CartManager.getInstance();
-        cartCount.setText(String.valueOf(cartManager.getItemCount()));
-        
-        // 订单数量（简单计数）
-        ordersCount.setText("0"); // TODO: 实际订单数量统计
-        
-        // 设置用户头像（简单处理）
-        // 实际应用中可以从Firebase Storage加载用户头像
+        repository.loadCurrentUser(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+                userNameDisplay.setText(data.getName());
+                userEmailDisplay.setText(data.getEmail());
+                creditsBalance.setText(String.valueOf(data.getCredits()));
+                accountRoleText.setText(data.isAdmin() ? "管理员账号" : "普通用户");
+                dataModeText.setText("当前数据模式：" + repository.getDataModeLabel(ProfileActivity.this));
+                adminPanelButton.setVisibility(data.isAdmin() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+                CartManager cartManager = CartManager.getInstance();
+                cartCount.setText(String.valueOf(cartManager.getItemCount()));
+                loadOrderCount();
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(ProfileActivity.this, errorMessage);
+            }
+        });
+    }
+
+    private void loadOrderCount() {
+        repository.loadOrders(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(List<Order> data) {
+                ordersCount.setText(String.valueOf(data.size()));
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                ordersCount.setText("0");
+            }
+        });
+    }
+
+    private void showTopUpDialog() {
+        TextInputEditText amountInput = new TextInputEditText(this);
+        amountInput.setHint("请输入充值积分，例如 100");
+        amountInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+
+        new AlertDialog.Builder(this)
+                .setTitle("充值积分")
+                .setView(amountInput)
+                .setMessage("输入要充值的积分数量，余额会同步更新。")
+                .setPositiveButton("确认充值", (dialog, which) -> {
+                    String rawAmount = amountInput.getText() == null
+                            ? ""
+                            : amountInput.getText().toString().trim();
+                    if (rawAmount.isEmpty()) {
+                        Utils.showToast(ProfileActivity.this, "请输入充值积分");
+                        return;
+                    }
+
+                    int amount;
+                    try {
+                        amount = Integer.parseInt(rawAmount);
+                    } catch (NumberFormatException e) {
+                        Utils.showToast(ProfileActivity.this, "请输入有效数字");
+                        return;
+                    }
+
+                    if (amount <= 0) {
+                        Utils.showToast(ProfileActivity.this, "充值积分必须大于0");
+                        return;
+                    }
+
+                    repository.topUpCredits(ProfileActivity.this, amount, new AppRepository.DataCallback<>() {
+                        @Override
+                        public void onSuccess(User data) {
+                            currentUser = data;
+                            creditsBalance.setText(String.valueOf(data.getCredits()));
+                            Utils.showToast(ProfileActivity.this, "充值成功，当前积分：" + data.getCredits());
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            Utils.showToast(ProfileActivity.this, errorMessage);
+                        }
+                    });
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     /**
@@ -114,8 +199,7 @@ public class ProfileActivity extends AppCompatActivity {
      * 执行退出登录
      */
     private void performLogout() {
-        // 清除用户数据
-        TempAuthUtil.logout(this);
+        repository.logout(this);
         
         // 清空购物车
         CartManager.getInstance().clearCart();

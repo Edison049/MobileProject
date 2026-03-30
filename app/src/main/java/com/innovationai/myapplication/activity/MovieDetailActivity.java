@@ -29,11 +29,11 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.google.android.material.button.MaterialButton;
 import com.innovationai.myapplication.R;
+import com.innovationai.myapplication.data.AppRepository;
 import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
 import com.innovationai.myapplication.util.Constants;
-import com.innovationai.myapplication.util.TempAuthUtil;
 import com.innovationai.myapplication.util.Utils;
 
 import java.io.File;
@@ -50,6 +50,7 @@ public class MovieDetailActivity extends AppCompatActivity {
     private static final String TAG = "MovieDetailActivity";
     private static final long SEEK_INTERVAL_MS = 10_000L;
     private static final long CONTROLS_HIDE_DELAY_MS = 3_000L;
+    private final AppRepository repository = AppRepository.getInstance();
 
     // UI 组件
     private ImageButton backButton;
@@ -168,44 +169,23 @@ public class MovieDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * 加载电影详情（使用模拟数据）
+     * 加载电影详情
      */
     private void loadMovieDetails() {
-        currentMovie = createMockMovie(movieId);
-        if (currentMovie == null) {
-            Utils.showToast(this, "电影不存在");
-            finish();
-            return;
-        }
+        repository.loadMovieById(this, movieId, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(Movie data) {
+                currentMovie = data;
+                displayMovieDetails();
+                setupVideoPlayer();
+            }
 
-        displayMovieDetails();
-        setupVideoPlayer();
-    }
-
-    /**
-     * 创建模拟电影对象
-     */
-    private Movie createMockMovie(String id) {
-        switch (id) {
-            case "1":
-                return new Movie(id, "复仇者联盟 4", "超级英雄们集结对抗灭霸", 150,
-                        R.drawable.avengers4, buildRawVideoUrl(R.raw.avenger_trailer),
-                        "动作", 8.5f, "罗素兄弟", "小罗伯特·唐尼，克里斯·埃文斯");
-            case "2":
-                return new Movie(id, "速度与激情 9", "多米尼克和他的家人面临新的威胁", 120,
-                        R.drawable.fast_and_furious, buildRawVideoUrl(R.raw.fastandfurious_trailer),
-                        "动作", 7.2f, "林诣彬", "范·迪塞尔，米歇尔·罗德里格兹");
-            case "3":
-                return new Movie(id, "宿醉", "四个朋友拉斯维加斯狂欢后的疯狂经历", 80,
-                        "https://example.com/hangover.jpg", buildRawVideoUrl(R.raw.seabird1),
-                        "喜剧", 7.8f, "托德·菲利普斯", "布莱德利·库珀，艾德·赫尔姆斯");
-            case "4":
-                return new Movie(id, "肖申克的救赎", "银行家安迪在监狱中的希望之旅", 100,
-                        "https://example.com/shawshank.jpg", buildRawVideoUrl(R.raw.seabird1),
-                        "剧情", 9.7f, "弗兰克·德拉邦特", "蒂姆·罗宾斯，摩根·弗里曼");
-            default:
-                return null;
-        }
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(MovieDetailActivity.this, errorMessage);
+                finish();
+            }
+        });
     }
 
     /**
@@ -424,17 +404,20 @@ public class MovieDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * 加载用户信息（使用临时认证）
+     * 加载当前用户信息
      */
     private void loadUserInfo() {
-        String userName = TempAuthUtil.getCurrentUserName(this);
-        int credits = TempAuthUtil.getCurrentUserCredits(this);
+        repository.loadCurrentUser(this, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+            }
 
-        if (!userName.isEmpty()) {
-            currentUser = new User();
-            currentUser.setName(userName);
-            currentUser.setCredits(credits);
-        }
+            @Override
+            public void onError(String errorMessage) {
+                currentUser = null;
+            }
+        });
     }
 
     /**
@@ -481,29 +464,31 @@ public class MovieDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * 处理购买逻辑（使用临时认证）
+     * 处理购买逻辑
      */
     private void processPurchase() {
         if (currentMovie == null) {
             return;
         }
 
-        int currentCredits = TempAuthUtil.getCurrentUserCredits(this);
-        if (currentCredits < currentMovie.getPrice()) {
-            Utils.showToast(this, "积分不足，无法购买");
-            return;
-        }
+        repository.buyMovie(this, currentMovie, new AppRepository.DataCallback<>() {
+            @Override
+            public void onSuccess(User data) {
+                currentUser = data;
+                createOrderRecord(data.getCredits());
+            }
 
-        int newCredits = currentCredits - currentMovie.getPrice();
-        TempAuthUtil.updateUserCredits(this, newCredits);
-        createOrderRecord();
+            @Override
+            public void onError(String errorMessage) {
+                Utils.showToast(MovieDetailActivity.this, errorMessage);
+            }
+        });
     }
 
     /**
      * 创建订单记录
      */
-    private void createOrderRecord() {
-        int remainingCredits = TempAuthUtil.getCurrentUserCredits(this);
+    private void createOrderRecord(int remainingCredits) {
         Utils.showToast(this, "购买成功！积分余额：" + remainingCredits);
         finish();
     }
@@ -732,10 +717,6 @@ public class MovieDetailActivity extends AppCompatActivity {
         if (videoView != null) {
             videoView.setPlayer(null);
         }
-    }
-
-    private String buildRawVideoUrl(int rawResId) {
-        return RawResourceDataSource.buildRawResourceUri(rawResId).toString();
     }
 
     private Uri buildPlayableVideoUri(Uri sourceVideoUri) throws IOException {

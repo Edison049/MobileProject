@@ -99,6 +99,15 @@
                         android:textColor="#B3B3B3"
                         android:layout_marginTop="4dp" />
 
+                    <TextView
+                        android:id="@+id/account_role_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="普通用户"
+                        android:textSize="14sp"
+                        android:textColor="#E50914"
+                        android:layout_marginTop="6dp" />
+
                 </LinearLayout>
 
             </LinearLayout>
@@ -196,6 +205,15 @@
 
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/data_mode_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="当前数据模式：本地模式"
+                android:textColor="#B3B3B3"
+                android:textSize="13sp" />
+
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
@@ -206,6 +224,29 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/top_up_button"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="充值积分"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="12dp"
+            app:backgroundTint="#E50914" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/admin_panel_button"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="管理员后台"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"
+            app:backgroundTint="#455A64" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/logout_button"

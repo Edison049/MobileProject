@@ -67,6 +67,11 @@
             android:name=".activity.ProfileActivity"
             android:exported="false" />
 
+        <!-- 管理员后台Activity -->
+        <activity
+            android:name=".activity.AdminPanelActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

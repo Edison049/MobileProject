@@ -28,7 +28,7 @@ public class MovieDetailActivitySeekTest {
     @Test
     public void seekControlsShouldContinueFromTargetPosition() throws Exception {
         Intent intent = new Intent(ApplicationProvider.getApplicationContext(), MovieDetailActivity.class);
-        intent.putExtra(Constants.EXTRA_MOVIE_ID, "1");
+        intent.putExtra(Constants.EXTRA_MOVIE_ID, "movie_avengers4");
 
         try (ActivityScenario<MovieDetailActivity> scenario = ActivityScenario.launch(intent)) {
             waitUntilReady(scenario);
