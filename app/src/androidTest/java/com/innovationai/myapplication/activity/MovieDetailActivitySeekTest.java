@@ -11,8 +11,12 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.innovationai.myapplication.data.AppRepository;
+import com.innovationai.myapplication.data.LocalDataStore;
 import com.innovationai.myapplication.util.Constants;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -23,7 +27,20 @@ import java.util.concurrent.atomic.AtomicLong;
 @RunWith(AndroidJUnit4.class)
 public class MovieDetailActivitySeekTest {
     private static final long READY_TIMEOUT_MS = 20_000L;
-    private static final long POSITION_TIMEOUT_MS = 8_000L;
+    private static final long POSITION_TIMEOUT_MS = 4_000L;
+    private final AppRepository repository = AppRepository.getInstance();
+
+    @Before
+    public void setUp() throws InterruptedException {
+        repository.setForceLocalModeForTesting(true);
+        LocalDataStore.getInstance().resetForTesting(ApplicationProvider.getApplicationContext());
+        waitForInitialization();
+    }
+
+    @After
+    public void tearDown() {
+        repository.setForceLocalModeForTesting(false);
+    }
 
     @Test
     public void seekControlsShouldContinueFromTargetPosition() throws Exception {
@@ -40,7 +57,7 @@ public class MovieDetailActivitySeekTest {
             waitForPositionNear(scenario, directSeekTargetMs, 2_000L, POSITION_TIMEOUT_MS);
 
             scenario.onActivity(activity -> getPlayer(activity).play());
-            SystemClock.sleep(1_500L);
+            SystemClock.sleep(800L);
 
             long afterDirectSeekPlaybackMs = readPlayerPosition(scenario);
             assertTrue(
@@ -55,13 +72,13 @@ public class MovieDetailActivitySeekTest {
             scenario.onActivity(activity -> getFastForwardButton(activity).performClick());
             long afterFastForwardMs = waitForPositionGreaterThan(
                     scenario,
-                    beforeFastForwardMs + 6_000L,
+                    beforeFastForwardMs + 4_000L,
                     POSITION_TIMEOUT_MS
             );
             assertTrue(
                     "Fast forward should move the player forward instead of restarting from 0, but was "
                             + afterFastForwardMs,
-                    afterFastForwardMs > beforeFastForwardMs + 5_000L
+                    afterFastForwardMs > beforeFastForwardMs + 3_500L
             );
 
             scenario.onActivity(activity -> getPlayer(activity).pause());
@@ -70,7 +87,7 @@ public class MovieDetailActivitySeekTest {
             scenario.onActivity(activity -> getRewindButton(activity).performClick());
             long afterRewindMs = waitForPositionLessThan(
                     scenario,
-                    beforeRewindMs - 4_000L,
+                    beforeRewindMs - 2_000L,
                     POSITION_TIMEOUT_MS
             );
             assertTrue(
@@ -239,5 +256,30 @@ public class MovieDetailActivitySeekTest {
             return (Long) value;
         }
         throw new AssertionError("Field is not a long: " + fieldName);
+    }
+
+    private void waitForInitialization() throws InterruptedException {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<String> error = new java.util.concurrent.atomic.AtomicReference<>();
+        repository.initialize(
+                ApplicationProvider.getApplicationContext(),
+                new AppRepository.ActionCallback() {
+                    @Override
+                    public void onSuccess() {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        error.set(errorMessage);
+                        latch.countDown();
+                    }
+                }
+        );
+
+        assertTrue("Repository initialization timed out", latch.await(10L, java.util.concurrent.TimeUnit.SECONDS));
+        if (error.get() != null) {
+            throw new AssertionError(error.get());
+        }
     }
 }

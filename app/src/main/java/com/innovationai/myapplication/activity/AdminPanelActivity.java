@@ -1,8 +1,9 @@
 package com.innovationai.myapplication.activity;
 
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.LayoutInflater;
+import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -12,7 +13,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.innovationai.myapplication.R;
 import com.innovationai.myapplication.adapter.AdminMovieAdapter;
@@ -89,11 +92,11 @@ public class AdminPanelActivity extends AppCompatActivity {
             @Override
             public void onSuccess(User data) {
                 if (!data.isAdmin()) {
-                    Utils.showToast(AdminPanelActivity.this, "只有管理员可以进入后台");
+                    Utils.showToast(AdminPanelActivity.this, "Only administrators can access the admin panel");
                     finish();
                     return;
                 }
-                modeText.setText("当前数据模式：" + repository.getDataModeLabel(AdminPanelActivity.this));
+                modeText.setText("Current data mode: " + repository.getDataModeLabel(AdminPanelActivity.this));
                 loadAllData();
             }
 
@@ -141,18 +144,40 @@ public class AdminPanelActivity extends AppCompatActivity {
 
         TextInputEditText titleInput = dialogView.findViewById(R.id.movie_title_input);
         TextInputEditText descriptionInput = dialogView.findViewById(R.id.movie_description_input);
-        TextInputEditText genreInput = dialogView.findViewById(R.id.movie_genre_input);
+        MaterialAutoCompleteTextView genreInput = dialogView.findViewById(R.id.movie_genre_input);
         TextInputEditText directorInput = dialogView.findViewById(R.id.movie_director_input);
         TextInputEditText castInput = dialogView.findViewById(R.id.movie_cast_input);
         TextInputEditText priceInput = dialogView.findViewById(R.id.movie_price_input);
         TextInputEditText ratingInput = dialogView.findViewById(R.id.movie_rating_input);
         TextInputEditText posterInput = dialogView.findViewById(R.id.movie_poster_input);
         TextInputEditText videoInput = dialogView.findViewById(R.id.movie_video_input);
+        ImageView posterPreview = dialogView.findViewById(R.id.movie_poster_preview);
+        String[] movieGenres = getResources().getStringArray(R.array.admin_movie_genres);
+        genreInput.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, movieGenres));
+        genreInput.setKeyListener(null);
+        genreInput.setOnClickListener(view -> genreInput.showDropDown());
+        genreInput.setOnFocusChangeListener((view, hasFocus) -> {
+            if (hasFocus) {
+                genreInput.showDropDown();
+            }
+        });
+        loadPosterPreview(posterPreview, MovieMediaUtil.drawableRef("ic_launcher_foreground"));
+        posterInput.setOnFocusChangeListener((view, hasFocus) -> {
+            if (!hasFocus) {
+                loadPosterPreview(posterPreview, textOf(posterInput));
+            }
+        });
 
-        new AlertDialog.Builder(this)
-                .setTitle("添加电影")
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Add Movie")
                 .setView(dialogView)
-                .setPositiveButton("保存", (dialog, which) -> {
+                .setPositiveButton("Save", null)
+                .setNegativeButton("Cancel", null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
                     String title = textOf(titleInput);
                     String description = textOf(descriptionInput);
                     String genre = textOf(genreInput);
@@ -162,7 +187,12 @@ public class AdminPanelActivity extends AppCompatActivity {
                     String videoUrl = textOf(videoInput);
 
                     if (title.isEmpty() || description.isEmpty() || genre.isEmpty()) {
-                        Utils.showToast(this, "请至少填写标题、简介和类型");
+                        Utils.showToast(this, "Please provide at least a title, synopsis, and genre");
+                        return;
+                    }
+
+                    if (!posterUrl.isEmpty() && !MovieMediaUtil.isRemoteUrl(posterUrl)) {
+                        Utils.showToast(this, "Poster URL must start with http or https");
                         return;
                     }
 
@@ -172,7 +202,7 @@ public class AdminPanelActivity extends AppCompatActivity {
                         price = Integer.parseInt(textOf(priceInput));
                         rating = Float.parseFloat(textOf(ratingInput));
                     } catch (NumberFormatException e) {
-                        Utils.showToast(this, "价格和评分必须是有效数字");
+                        Utils.showToast(this, "Price and rating must be valid numbers");
                         return;
                     }
 
@@ -195,8 +225,9 @@ public class AdminPanelActivity extends AppCompatActivity {
                     repository.addMovie(this, movie, new AppRepository.ActionCallback() {
                         @Override
                         public void onSuccess() {
-                            Utils.showToast(AdminPanelActivity.this, "电影已添加");
+                            Utils.showToast(AdminPanelActivity.this, "Movie added successfully");
                             loadAllData();
+                            dialog.dismiss();
                         }
 
                         @Override
@@ -204,9 +235,8 @@ public class AdminPanelActivity extends AppCompatActivity {
                             Utils.showToast(AdminPanelActivity.this, errorMessage);
                         }
                     });
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                }));
+        dialog.show();
     }
 
     private void showAddUserDialog() {
@@ -221,14 +251,14 @@ public class AdminPanelActivity extends AppCompatActivity {
         CheckBox adminCheckBox = dialogView.findViewById(R.id.user_admin_checkbox);
 
         new AlertDialog.Builder(this)
-                .setTitle("添加用户")
+                .setTitle("Add User")
                 .setView(dialogView)
-                .setPositiveButton("保存", (dialog, which) -> {
+                .setPositiveButton("Save", (dialog, which) -> {
                     String name = textOf(nameInput);
                     String email = textOf(emailInput);
                     String password = textOf(passwordInput);
                     if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
-                        Utils.showToast(this, "请完整填写用户名、邮箱和密码");
+                        Utils.showToast(this, "Please fill in the username, email, and password");
                         return;
                     }
 
@@ -238,7 +268,7 @@ public class AdminPanelActivity extends AppCompatActivity {
                         age = Integer.parseInt(textOf(ageInput));
                         credits = Integer.parseInt(textOf(creditsInput));
                     } catch (NumberFormatException e) {
-                        Utils.showToast(this, "年龄和积分必须是有效数字");
+                        Utils.showToast(this, "Age and credits must be valid numbers");
                         return;
                     }
 
@@ -248,7 +278,7 @@ public class AdminPanelActivity extends AppCompatActivity {
                             new AppRepository.DataCallback<>() {
                                 @Override
                                 public void onSuccess(User data) {
-                                    Utils.showToast(AdminPanelActivity.this, "用户已添加");
+                                    Utils.showToast(AdminPanelActivity.this, "User added successfully");
                                     loadAllData();
                                 }
 
@@ -258,19 +288,19 @@ public class AdminPanelActivity extends AppCompatActivity {
                                 }
                             });
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void confirmDeleteMovie(Movie movie) {
         new AlertDialog.Builder(this)
-                .setTitle("删除电影")
-                .setMessage("确认删除《" + movie.getTitle() + "》吗？删除后电影列表将不再显示。")
-                .setPositiveButton("删除", (dialog, which) -> repository.deleteMovie(this, movie.getId(),
+                .setTitle("Delete Movie")
+                .setMessage("Delete \"" + movie.getTitle() + "\"? It will no longer appear in the movie list.")
+                .setPositiveButton("Delete", (dialog, which) -> repository.deleteMovie(this, movie.getId(),
                         new AppRepository.ActionCallback() {
                             @Override
                             public void onSuccess() {
-                                Utils.showToast(AdminPanelActivity.this, "电影已删除");
+                                Utils.showToast(AdminPanelActivity.this, "Movie deleted successfully");
                                 loadAllData();
                             }
 
@@ -279,19 +309,19 @@ public class AdminPanelActivity extends AppCompatActivity {
                                 Utils.showToast(AdminPanelActivity.this, errorMessage);
                             }
                         }))
-                .setNegativeButton("取消", null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void confirmDeleteUser(User user) {
         new AlertDialog.Builder(this)
-                .setTitle("删除用户")
-                .setMessage("确认停用用户 " + user.getName() + " 吗？停用后该用户将无法再次登录。")
-                .setPositiveButton("删除", (dialog, which) -> repository.deleteUser(this, user.getUid(),
+                .setTitle("Delete User")
+                .setMessage("Deactivate user " + user.getName() + "? They will no longer be able to sign in.")
+                .setPositiveButton("Delete", (dialog, which) -> repository.deleteUser(this, user.getUid(),
                         new AppRepository.ActionCallback() {
                             @Override
                             public void onSuccess() {
-                                Utils.showToast(AdminPanelActivity.this, "用户已删除");
+                                Utils.showToast(AdminPanelActivity.this, "User deleted successfully");
                                 loadAllData();
                             }
 
@@ -300,11 +330,31 @@ public class AdminPanelActivity extends AppCompatActivity {
                                 Utils.showToast(AdminPanelActivity.this, errorMessage);
                             }
                         }))
-                .setNegativeButton("取消", null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private String textOf(TextInputEditText editText) {
-        return editText.getText() == null ? "" : editText.getText().toString().trim();
+    private String textOf(TextView textView) {
+        return textView.getText() == null ? "" : textView.getText().toString().trim();
+    }
+
+    private void loadPosterPreview(ImageView previewView, String posterSource) {
+        if (previewView == null) {
+            return;
+        }
+
+        Object loadSource = posterSource;
+        if (posterSource != null && posterSource.startsWith(MovieMediaUtil.DRAWABLE_PREFIX)) {
+            String resourceName = posterSource.substring(MovieMediaUtil.DRAWABLE_PREFIX.length());
+            int resourceId = getResources().getIdentifier(resourceName, "drawable", getPackageName());
+            loadSource = resourceId == 0 ? R.drawable.ic_launcher_foreground : resourceId;
+        }
+
+        Glide.with(this)
+                .load(loadSource)
+                .placeholder(R.drawable.ic_launcher_foreground)
+                .error(R.drawable.ic_launcher_foreground)
+                .centerCrop()
+                .into(previewView);
     }
 }

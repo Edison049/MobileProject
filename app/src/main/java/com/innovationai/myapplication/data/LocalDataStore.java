@@ -9,6 +9,7 @@ import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.Order;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.Constants;
+import com.innovationai.myapplication.util.DefaultMovieCatalog;
 import com.innovationai.myapplication.util.MovieMediaUtil;
 import com.innovationai.myapplication.util.SecurityUtil;
 
@@ -327,7 +328,7 @@ public final class LocalDataStore {
         order.setMovies(cloneCartItems(cartItems));
         order.setTotalAmount(totalAmount);
         order.setTimestamp(Timestamp.now());
-        order.setStatus("已完成");
+        order.setStatus("Completed");
         array.put(orderToJson(order));
         writeArray(context, KEY_ORDERS_JSON, array);
         return order;
@@ -418,54 +419,20 @@ public final class LocalDataStore {
 
     private JSONArray buildDefaultMovies() {
         JSONArray array = new JSONArray();
-        array.put(buildMovieJson(
-                "movie_avengers4",
-                "复仇者联盟 4",
-                "超级英雄们集结对抗灭霸",
-                150,
-                MovieMediaUtil.drawableRef("avengers4"),
-                MovieMediaUtil.rawRef("avenger_trailer"),
-                "动作",
-                8.5f,
-                "罗素兄弟",
-                "小罗伯特·唐尼，克里斯·埃文斯"
-        ));
-        array.put(buildMovieJson(
-                "movie_fast9",
-                "速度与激情 9",
-                "多米尼克和他的家人面临新的威胁",
-                120,
-                MovieMediaUtil.drawableRef("fast_and_furious"),
-                MovieMediaUtil.rawRef("fastandfurious_trailer"),
-                "动作",
-                7.2f,
-                "林诣彬",
-                "范·迪塞尔，米歇尔·罗德里格兹"
-        ));
-        array.put(buildMovieJson(
-                "movie_hangover",
-                "宿醉",
-                "四个朋友拉斯维加斯狂欢后的疯狂经历",
-                80,
-                MovieMediaUtil.drawableRef("ic_launcher_foreground"),
-                MovieMediaUtil.rawRef("seabird1"),
-                "喜剧",
-                7.8f,
-                "托德·菲利普斯",
-                "布莱德利·库珀，艾德·赫尔姆斯"
-        ));
-        array.put(buildMovieJson(
-                "movie_shawshank",
-                "肖申克的救赎",
-                "银行家安迪在监狱中的希望之旅",
-                100,
-                MovieMediaUtil.drawableRef("ic_launcher_foreground"),
-                MovieMediaUtil.rawRef("seabird1"),
-                "剧情",
-                9.7f,
-                "弗兰克·德拉邦特",
-                "蒂姆·罗宾斯，摩根·弗里曼"
-        ));
+        for (Movie movie : DefaultMovieCatalog.getDefaultMovies()) {
+            array.put(buildMovieJson(
+                    movie.getId(),
+                    movie.getTitle(),
+                    movie.getDescription(),
+                    movie.getPrice(),
+                    movie.getPosterUrl(),
+                    movie.getPreviewVideoUrl(),
+                    movie.getGenre(),
+                    movie.getRating(),
+                    movie.getDirector(),
+                    movie.getCast()
+            ));
+        }
         return array;
     }
 
@@ -498,7 +465,7 @@ public final class LocalDataStore {
             jsonObject.put("price", price);
             jsonObject.put("posterUrl", posterUrl);
             jsonObject.put("previewVideoUrl", previewVideoUrl);
-            jsonObject.put("genre", genre);
+            jsonObject.put("genre", DefaultMovieCatalog.normalizeGenre(genre));
             jsonObject.put("rating", rating);
             jsonObject.put("director", director);
             jsonObject.put("cast", cast);
@@ -569,10 +536,11 @@ public final class LocalDataStore {
         movie.setPrice(jsonObject.optInt("price"));
         movie.setPosterUrl(jsonObject.optString("posterUrl"));
         movie.setPreviewVideoUrl(jsonObject.optString("previewVideoUrl"));
-        movie.setGenre(jsonObject.optString("genre"));
+        movie.setGenre(DefaultMovieCatalog.normalizeGenre(jsonObject.optString("genre")));
         movie.setRating((float) jsonObject.optDouble("rating"));
         movie.setDirector(jsonObject.optString("director"));
         movie.setCast(jsonObject.optString("cast"));
+        DefaultMovieCatalog.normalizeMovie(movie);
         MovieMediaUtil.hydrateLocalResources(context, movie);
         return movie;
     }
@@ -599,7 +567,8 @@ public final class LocalDataStore {
         order.setOrderId(jsonObject.optString("orderId"));
         order.setUserId(jsonObject.optString("userId"));
         order.setTotalAmount(jsonObject.optInt("totalAmount"));
-        order.setStatus(jsonObject.optString("status", "已完成"));
+        order.setStatus(DefaultMovieCatalog.normalizeOrderStatus(
+                jsonObject.optString("status", "Completed")));
         order.setTimestamp(new Timestamp(new Date(jsonObject.optLong("timestampMillis", System.currentTimeMillis()))));
         order.setMovies(jsonToCartItems(context, jsonObject.optJSONArray("movies")));
         return order;

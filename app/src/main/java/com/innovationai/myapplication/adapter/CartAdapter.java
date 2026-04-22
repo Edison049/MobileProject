@@ -94,7 +94,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
             movieTitle.setText(movie.getTitle());
             
             // 设置价格
-            moviePrice.setText(movie.getPrice() + "积分");
+            moviePrice.setText(movie.getPrice() + " credits");
             
             // 设置类型
             movieGenre.setText(movie.getGenre());
@@ -123,7 +123,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
                         listener.onCartUpdated();
                     }
                     
-                    Utils.showToast(context, "已从购物车移除: " + movie.getTitle());
+                    Utils.showToast(context, "Removed from cart: " + movie.getTitle());
                 }
             });
         }

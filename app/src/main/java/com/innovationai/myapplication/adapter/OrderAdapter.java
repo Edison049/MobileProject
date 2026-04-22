@@ -82,21 +82,21 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
         public void bind(Order order) {
             // 设置订单ID
-            orderIdText.setText("订单号: " + order.getOrderId());
+            orderIdText.setText("Order ID: " + order.getOrderId());
             
             // 设置订单日期
             if (order.getTimestamp() != null) {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-                orderDateText.setText("下单时间: " + sdf.format(order.getTimestamp().toDate()));
+                orderDateText.setText("Ordered at: " + sdf.format(order.getTimestamp().toDate()));
             } else {
-                orderDateText.setText("下单时间: " + new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date()));
+                orderDateText.setText("Ordered at: " + new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date()));
             }
             
             // 设置总金额
-            orderTotalText.setText("总金额: " + order.getTotalAmount() + "积分");
+            orderTotalText.setText("Total: " + order.getTotalAmount() + " credits");
             
             // 设置状态
-            orderStatusText.setText("状态: " + order.getStatus());
+            orderStatusText.setText("Status: " + order.getStatus());
             
             // 设置订单项目
             if (itemsAdapter == null) {
@@ -155,7 +155,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
             public void bind(CartItem item) {
                 movieTitle.setText(item.getMovie().getTitle());
-                moviePrice.setText(item.getMovie().getPrice() + "积分");
+                moviePrice.setText(item.getMovie().getPrice() + " credits");
             }
         }
     }

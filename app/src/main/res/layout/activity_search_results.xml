@@ -21,13 +21,13 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_revert"
             app:tint="#FFFFFF"
-            android:contentDescription="返回" />
+            android:contentDescription="Back" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="搜索结果"
+            android:text="Search Results"
             android:textSize="20sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"

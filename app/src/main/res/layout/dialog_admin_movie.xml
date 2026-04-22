@@ -17,7 +17,7 @@
                 android:id="@+id/movie_title_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="电影名称" />
+                android:hint="Movie title" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -28,18 +28,24 @@
                 android:id="@+id/movie_description_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="剧情简介" />
+                android:hint="Synopsis"
+                android:gravity="top|start"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="3"
+                android:maxLines="6" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp">
-            <com.google.android.material.textfield.TextInputEditText
+            android:layout_marginTop="8dp"
+            android:hint="Genre">
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/movie_genre_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="电影类型" />
+                android:inputType="none" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -50,7 +56,7 @@
                 android:id="@+id/movie_director_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="导演" />
+                android:hint="Director" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -61,7 +67,7 @@
                 android:id="@+id/movie_cast_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="演员" />
+                android:hint="Cast" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -72,7 +78,7 @@
                 android:id="@+id/movie_price_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="价格（积分）"
+                android:hint="Price (credits)"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -84,9 +90,21 @@
                 android:id="@+id/movie_rating_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="评分，例如 8.5"
+                android:hint="Rating, for example 8.5"
                 android:inputType="numberDecimal" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <ImageView
+            android:id="@+id/movie_poster_preview"
+            android:layout_width="120dp"
+            android:layout_height="160dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:background="#1F1F1F"
+            android:contentDescription="Poster preview"
+            android:padding="4dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_launcher_foreground" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -96,7 +114,7 @@
                 android:id="@+id/movie_poster_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="海报地址，可留空" />
+                android:hint="Poster URL, for example https://example.com/poster.jpg" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -107,7 +125,7 @@
                 android:id="@+id/movie_video_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="视频地址，可留空" />
+                android:hint="Video URL, supports mp4 or YouTube links" />
         </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>

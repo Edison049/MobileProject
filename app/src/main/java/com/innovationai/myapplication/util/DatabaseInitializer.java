@@ -21,50 +21,50 @@ public class DatabaseInitializer {
     public static void initializeSampleMovies() {
         // 动作片数据
         Movie[] actionMovies = {
-            new Movie("action_1", "复仇者联盟4", "超级英雄们集结对抗灭霸", 150, 
+            new Movie("action_1", "Avengers: Endgame", "Earth's mightiest heroes assemble for one final battle against Thanos.", 150,
                      "https://example.com/avengers4.jpg", 
                      "https://example.com/avengers4_trailer.mp4", 
-                     "动作", 8.5f, "罗素兄弟", "小罗伯特·唐尼,克里斯·埃文斯"),
-            new Movie("action_2", "速度与激情9", "多米尼克和他的家人面临新的威胁", 120, 
+                     "Action", 8.5f, "Anthony and Joe Russo", "Robert Downey Jr., Chris Evans"),
+            new Movie("action_2", "F9", "Dom and his family face a dangerous new threat from the past.", 120,
                      "https://example.com/fast9.jpg", 
                      "https://example.com/fast9_trailer.mp4", 
-                     "动作", 7.2f, "林诣彬", "范·迪塞尔,米歇尔·罗德里格兹"),
-            new Movie("action_3", "碟中谍7", "伊森·亨特面对最危险的任务", 180, 
+                     "Action", 7.2f, "Justin Lin", "Vin Diesel, Michelle Rodriguez"),
+            new Movie("action_3", "Mission: Impossible - Dead Reckoning Part One", "Ethan Hunt faces his most dangerous mission yet.", 180,
                      "https://example.com/mission7.jpg", 
                      "https://example.com/mission7_trailer.mp4", 
-                     "动作", 8.1f, "克里斯托夫·迈考利", "汤姆·克鲁斯,丽贝卡·弗格森")
+                     "Action", 8.1f, "Christopher McQuarrie", "Tom Cruise, Rebecca Ferguson")
         };
 
         // 喜剧片数据
         Movie[] comedyMovies = {
-            new Movie("comedy_1", "宿醉", "四个朋友拉斯维加斯狂欢后的疯狂经历", 80, 
+            new Movie("comedy_1", "The Hangover", "A wild bachelor party in Las Vegas spirals into unforgettable chaos.", 80,
                      "https://example.com/hangover.jpg", 
                      "https://example.com/hangover_trailer.mp4", 
-                     "喜剧", 7.8f, "托德·菲利普斯", "布莱德利·库珀,艾德·赫尔姆斯"),
-            new Movie("comedy_2", "冒牌家庭", "一家人假扮成大麻商人的真实故事", 90, 
+                     "Comedy", 7.8f, "Todd Phillips", "Bradley Cooper, Ed Helms"),
+            new Movie("comedy_2", "We're the Millers", "A fake family road trip turns into a hilarious disaster.", 90,
                      "https://example.com/weed.jpg", 
                      "https://example.com/weed_trailer.mp4", 
-                     "喜剧", 7.0f, "罗森·马歇尔·瑟伯", "威尔·法瑞尔,马克·沃尔伯格"),
-            new Movie("comedy_3", "泰迪熊", "会说话的泰迪熊带来的搞笑冒险", 75, 
+                     "Comedy", 7.0f, "Rawson Marshall Thurber", "Jason Sudeikis, Jennifer Aniston"),
+            new Movie("comedy_3", "Ted", "A foul-mouthed teddy bear brings chaos to his best friend's life.", 75,
                      "https://example.com/ted.jpg", 
                      "https://example.com/ted_trailer.mp4", 
-                     "喜剧", 7.3f, "塞思·麦克法兰", "马克·沃尔伯格,米拉·库尼斯")
+                     "Comedy", 7.3f, "Seth MacFarlane", "Mark Wahlberg, Mila Kunis")
         };
 
         // 剧情片数据
         Movie[] dramaMovies = {
-            new Movie("drama_1", "肖申克的救赎", "银行家安迪在监狱中的希望之旅", 100, 
+            new Movie("drama_1", "The Shawshank Redemption", "A banker finds hope and friendship while serving a life sentence in prison.", 100,
                      "https://example.com/shawshank.jpg", 
                      "https://example.com/shawshank_trailer.mp4", 
-                     "剧情", 9.7f, "弗兰克·德拉邦特", "蒂姆·罗宾斯,摩根·弗里曼"),
-            new Movie("drama_2", "阿甘正传", "智商只有75的男人的非凡人生", 110, 
+                     "Drama", 9.7f, "Frank Darabont", "Tim Robbins, Morgan Freeman"),
+            new Movie("drama_2", "Forrest Gump", "A kind-hearted man with a low IQ lives an extraordinary life.", 110,
                      "https://example.com/forrest.jpg", 
                      "https://example.com/forrest_trailer.mp4", 
-                     "剧情", 9.5f, "罗伯特·泽米吉斯", "汤姆·汉克斯,罗宾·怀特"),
-            new Movie("drama_3", "当幸福来敲门", "父亲为了梦想坚持不懈的故事", 95, 
+                     "Drama", 9.5f, "Robert Zemeckis", "Tom Hanks, Robin Wright"),
+            new Movie("drama_3", "The Pursuit of Happyness", "A father keeps fighting for a better life for himself and his son.", 95,
                      "https://example.com/pursuit.jpg", 
                      "https://example.com/pursuit_trailer.mp4", 
-                     "剧情", 8.0f, "加布里尔·穆奇诺", "威尔·史密斯,贾登·史密斯")
+                     "Drama", 8.0f, "Gabriele Muccino", "Will Smith, Jaden Smith")
         };
 
         // 批量上传数据

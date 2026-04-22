@@ -101,7 +101,7 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
             movieRating.setText(String.format("%.1f★", movie.getRating()));
             
             // 设置价格
-            moviePrice.setText(movie.getPrice() + "积分");
+            moviePrice.setText(movie.getPrice() + " credits");
             
             // 设置年份（从发布日期提取）
             movieYear.setText("2023"); // TODO: 从实际数据中提取年份
@@ -140,11 +140,11 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
                     // 添加到购物车逻辑
                     CartManager cartManager = CartManager.getInstance();
                     if (cartManager.addToCart(movie)) {
-                        Utils.showToast(context, "已添加到购物车: " + movie.getTitle());
+                        Utils.showToast(context, "Added to cart: " + movie.getTitle());
                         // 更新购物车徽章数量
                         updateCartBadge();
                     } else {
-                        Utils.showToast(context, "该电影已在购物车中");
+                        Utils.showToast(context, "This movie is already in your cart");
                     }
                 }
             });

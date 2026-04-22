@@ -22,13 +22,13 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_revert"
             app:tint="#FFFFFF"
-            android:contentDescription="返回" />
+            android:contentDescription="Back" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="我的订单"
+            android:text="My Orders"
             android:textSize="20sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
@@ -53,7 +53,7 @@
             android:id="@+id/user_info_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="用户信息加载中..."
+            android:text="Loading user info..."
             android:textSize="16sp"
             android:textColor="#B3B3B3" />
 
@@ -83,12 +83,12 @@
             android:layout_height="120dp"
             android:src="@drawable/ic_launcher_foreground"
             android:alpha="0.3"
-            android:contentDescription="空订单" />
+            android:contentDescription="Empty orders" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="暂无订单记录"
+            android:text="No orders yet"
             android:textSize="18sp"
             android:textColor="#B3B3B3"
             android:layout_marginTop="16dp" />
@@ -96,7 +96,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="去购买一些电影吧！"
+            android:text="Time to rent a movie."
             android:textSize="14sp"
             android:textColor="#666666"
             android:layout_marginTop="8dp" />

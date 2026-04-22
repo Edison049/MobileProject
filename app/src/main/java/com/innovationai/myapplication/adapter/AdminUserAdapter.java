@@ -67,7 +67,7 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
 
         void bind(User user) {
             nameText.setText(user.getName());
-            subtitleText.setText(user.getEmail() + " | " + user.getCredits() + "积分 | " + user.getRole());
+            subtitleText.setText(user.getEmail() + " | " + user.getCredits() + " credits | " + user.getRole());
             deleteButton.setOnClickListener(v -> listener.onDeleteUser(user));
         }
     }

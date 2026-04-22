@@ -28,13 +28,13 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_revert"
                 app:tint="#FFFFFF"
-                android:contentDescription="返回" />
+                android:contentDescription="Back" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="购物车"
+                android:text="Cart"
                 android:textSize="20sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
@@ -71,12 +71,12 @@
                 android:layout_height="120dp"
                 android:src="@drawable/ic_launcher_foreground"
                 android:alpha="0.3"
-                android:contentDescription="空购物车" />
+                android:contentDescription="Empty cart" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="购物车是空的"
+                android:text="Your cart is empty"
                 android:textSize="18sp"
                 android:textColor="#B3B3B3"
                 android:layout_marginTop="16dp" />
@@ -84,7 +84,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="去添加一些喜欢的电影吧！"
+                android:text="Add some movies you like."
                 android:textSize="14sp"
                 android:textColor="#666666"
                 android:layout_marginTop="8dp" />
@@ -124,7 +124,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="总计:"
+                    android:text="Total:"
                     android:textSize="16sp"
                     android:textColor="#B3B3B3" />
 
@@ -133,7 +133,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="0积分"
+                    android:text="0 credits"
                     android:textSize="20sp"
                     android:textColor="#E50914"
                     android:textStyle="bold"
@@ -145,7 +145,7 @@
                 android:id="@+id/checkout_button"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="结算"
+                android:text="Checkout"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:backgroundTint="#E50914" />

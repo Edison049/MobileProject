@@ -20,7 +20,7 @@
             android:layout_height="140dp"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_launcher_foreground"
-            android:contentDescription="电影海报" />
+            android:contentDescription="Movie poster" />
 
         <!-- 电影信息区域 -->
         <LinearLayout
@@ -36,7 +36,7 @@
                 android:id="@+id/movie_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="电影标题"
+                android:text="Movie title"
                 android:textSize="14sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
@@ -63,7 +63,7 @@
                     android:id="@+id/movie_price"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="100积分"
+                    android:text="100 credits"
                     android:textSize="12sp"
                     android:textColor="#E50914"
                     android:textStyle="bold" />
@@ -95,7 +95,7 @@
             app:fabSize="mini"
             app:backgroundTint="#E50914"
             app:tint="#FFFFFF"
-            android:contentDescription="添加到购物车" />
+            android:contentDescription="Add to cart" />
 
     </RelativeLayout>
 

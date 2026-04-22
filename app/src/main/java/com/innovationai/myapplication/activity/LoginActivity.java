@@ -103,12 +103,12 @@ public class LoginActivity extends AppCompatActivity {
 
         // 显示加载状态
         loginButton.setEnabled(false);
-        loginButton.setText("登录中...");
+        loginButton.setText("Signing in...");
 
         AppRepository.getInstance().login(this, email, password, new AppRepository.DataCallback<>() {
             @Override
             public void onSuccess(com.innovationai.myapplication.model.User data) {
-                Utils.showToast(LoginActivity.this, "登录成功，欢迎 " + data.getName());
+                Utils.showToast(LoginActivity.this, "Signed in successfully. Welcome, " + data.getName());
                 navigateToMainMenu();
             }
 
@@ -131,7 +131,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // 验证账号
         if (TextUtils.isEmpty(email)) {
-            emailInputLayout.setError("请输入用户名或邮箱");
+            emailInputLayout.setError("Please enter your username or email");
             isValid = false;
         } else {
             emailInputLayout.setError(null);
@@ -139,10 +139,10 @@ public class LoginActivity extends AppCompatActivity {
 
         // 验证密码
         if (TextUtils.isEmpty(password)) {
-            passwordInputLayout.setError("请输入密码");
+            passwordInputLayout.setError("Please enter your password");
             isValid = false;
         } else if (!Utils.isValidPassword(password)) {
-            passwordInputLayout.setError("密码至少6位");
+            passwordInputLayout.setError("Password must be at least 6 characters");
             isValid = false;
         } else {
             passwordInputLayout.setError(null);
@@ -156,7 +156,7 @@ public class LoginActivity extends AppCompatActivity {
      */
     private void resetLoginButton() {
         loginButton.setEnabled(true);
-        loginButton.setText("登录");
+        loginButton.setText("Sign In");
     }
 
     /**

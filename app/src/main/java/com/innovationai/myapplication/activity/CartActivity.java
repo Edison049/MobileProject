@@ -137,7 +137,7 @@ public class CartActivity extends AppCompatActivity {
             
             // 更新总金额显示
             int totalAmount = cartManager.getTotalAmount();
-            totalAmountText.setText(totalAmount + "积分");
+            totalAmountText.setText(totalAmount + " credits");
         }
     }
 
@@ -164,12 +164,12 @@ public class CartActivity extends AppCompatActivity {
      */
     private void processCheckout() {
         if (cartItems == null || cartItems.isEmpty()) {
-            Utils.showToast(this, "购物车为空");
+            Utils.showToast(this, "Your cart is empty");
             return;
         }
 
         if (currentUser == null) {
-            Utils.showToast(this, "请先登录");
+            Utils.showToast(this, "Please sign in first");
             return;
         }
 
@@ -177,17 +177,17 @@ public class CartActivity extends AppCompatActivity {
         
         // 检查积分是否足够
         if (currentUser.getCredits() < totalAmount) {
-            Utils.showToast(this, "积分不足，无法完成购买");
+            Utils.showToast(this, "You do not have enough credits to complete this purchase");
             return;
         }
 
         // 显示确认对话框
         new AlertDialog.Builder(this)
-                .setTitle("确认结算")
-                .setMessage("确定要花费 " + totalAmount + " 积分购买这 " + 
-                           cartItems.size() + " 部电影吗？")
-                .setPositiveButton("确认购买", (dialog, which) -> completePurchase())
-                .setNegativeButton("取消", null)
+                .setTitle("Confirm Checkout")
+                .setMessage("Spend " + totalAmount + " credits to purchase "
+                        + cartItems.size() + " movie(s)?")
+                .setPositiveButton("Confirm", (dialog, which) -> completePurchase())
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -205,7 +205,7 @@ public class CartActivity extends AppCompatActivity {
             public void onSuccess(User data) {
                 currentUser = data;
                 CartManager.getInstance().clearCart();
-                Utils.showToast(CartActivity.this, "购买成功！剩余积分: " + data.getCredits());
+                Utils.showToast(CartActivity.this, "Purchase successful. Remaining credits: " + data.getCredits());
                 loadCartData();
                 checkoutButton.setEnabled(true);
                 finish();

@@ -104,8 +104,8 @@ public class ProfileActivity extends AppCompatActivity {
                 userNameDisplay.setText(data.getName());
                 userEmailDisplay.setText(data.getEmail());
                 creditsBalance.setText(String.valueOf(data.getCredits()));
-                accountRoleText.setText(data.isAdmin() ? "管理员账号" : "普通用户");
-                dataModeText.setText("当前数据模式：" + repository.getDataModeLabel(ProfileActivity.this));
+                accountRoleText.setText(data.isAdmin() ? "Administrator" : "Standard user");
+                dataModeText.setText("Current data mode: " + repository.getDataModeLabel(ProfileActivity.this));
                 adminPanelButton.setVisibility(data.isAdmin() ? android.view.View.VISIBLE : android.view.View.GONE);
 
                 CartManager cartManager = CartManager.getInstance();
@@ -136,19 +136,19 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void showTopUpDialog() {
         TextInputEditText amountInput = new TextInputEditText(this);
-        amountInput.setHint("请输入充值积分，例如 100");
+        amountInput.setHint("Enter the number of credits, for example 100");
         amountInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
 
         new AlertDialog.Builder(this)
-                .setTitle("充值积分")
+                .setTitle("Top Up Credits")
                 .setView(amountInput)
-                .setMessage("输入要充值的积分数量，余额会同步更新。")
-                .setPositiveButton("确认充值", (dialog, which) -> {
+                .setMessage("Enter how many credits you want to add. Your balance will update automatically.")
+                .setPositiveButton("Confirm", (dialog, which) -> {
                     String rawAmount = amountInput.getText() == null
                             ? ""
                             : amountInput.getText().toString().trim();
                     if (rawAmount.isEmpty()) {
-                        Utils.showToast(ProfileActivity.this, "请输入充值积分");
+                        Utils.showToast(ProfileActivity.this, "Please enter the amount of credits to add");
                         return;
                     }
 
@@ -156,12 +156,12 @@ public class ProfileActivity extends AppCompatActivity {
                     try {
                         amount = Integer.parseInt(rawAmount);
                     } catch (NumberFormatException e) {
-                        Utils.showToast(ProfileActivity.this, "请输入有效数字");
+                        Utils.showToast(ProfileActivity.this, "Please enter a valid number");
                         return;
                     }
 
                     if (amount <= 0) {
-                        Utils.showToast(ProfileActivity.this, "充值积分必须大于0");
+                        Utils.showToast(ProfileActivity.this, "Credits to add must be greater than 0");
                         return;
                     }
 
@@ -170,7 +170,7 @@ public class ProfileActivity extends AppCompatActivity {
                         public void onSuccess(User data) {
                             currentUser = data;
                             creditsBalance.setText(String.valueOf(data.getCredits()));
-                            Utils.showToast(ProfileActivity.this, "充值成功，当前积分：" + data.getCredits());
+                            Utils.showToast(ProfileActivity.this, "Top-up successful. Current credits: " + data.getCredits());
                         }
 
                         @Override
@@ -179,7 +179,7 @@ public class ProfileActivity extends AppCompatActivity {
                         }
                     });
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -188,10 +188,10 @@ public class ProfileActivity extends AppCompatActivity {
      */
     private void confirmLogout() {
         new AlertDialog.Builder(this)
-                .setTitle("确认退出")
-                .setMessage("确定要退出登录吗？")
-                .setPositiveButton("退出", (dialog, which) -> performLogout())
-                .setNegativeButton("取消", null)
+                .setTitle("Confirm Sign Out")
+                .setMessage("Are you sure you want to sign out?")
+                .setPositiveButton("Sign Out", (dialog, which) -> performLogout())
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -205,7 +205,7 @@ public class ProfileActivity extends AppCompatActivity {
         CartManager.getInstance().clearCart();
         
         // 显示退出成功提示
-        Utils.showToast(this, "已退出登录");
+        Utils.showToast(this, "Signed out successfully");
         
         // 跳转到登录页面
         Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);

@@ -19,7 +19,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="返回"
+            android:contentDescription="Back"
             app:tint="#FFFFFF" />
 
         <TextView
@@ -28,7 +28,7 @@
             android:layout_weight="1"
             android:layout_gravity="center_vertical"
             android:gravity="center"
-            android:text="管理员后台"
+            android:text="Admin Panel"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -53,7 +53,7 @@
                 android:id="@+id/admin_mode_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="当前数据模式："
+                android:text="Current data mode:"
                 android:textColor="#B3B3B3"
                 android:textSize="14sp"
                 android:layout_marginBottom="16dp" />
@@ -80,7 +80,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="电影管理"
+                            android:text="Movie Management"
                             android:textColor="#FFFFFF"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -89,7 +89,7 @@
                             android:id="@+id/add_movie_button"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="添加电影"
+                            android:text="Add Movie"
                             app:backgroundTint="#E50914" />
                     </LinearLayout>
 
@@ -123,7 +123,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="用户管理"
+                            android:text="User Management"
                             android:textColor="#FFFFFF"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -132,7 +132,7 @@
                             android:id="@+id/add_user_button"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="添加用户"
+                            android:text="Add User"
                             app:backgroundTint="#E50914" />
                     </LinearLayout>
 

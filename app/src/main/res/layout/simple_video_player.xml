@@ -16,8 +16,17 @@
         app:show_buffering="when_playing"
         app:use_controller="false" />
 
+    <WebView
+        android:id="@+id/youtube_web_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:background="#000000"
+        android:visibility="gone" />
+
     <!-- 半透明渐变覆盖层 -->
     <View
+        android:id="@+id/player_gradient_overlay"
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:layout_gravity="bottom"
@@ -88,7 +97,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_media_rew"
-                android:contentDescription="倒退"
+                android:contentDescription="Rewind"
                 android:scaleType="centerInside" />
 
             <!-- 播放/暂停 -->
@@ -98,7 +107,7 @@
                 android:layout_height="50dp"
                 android:background="@drawable/circle_background"
                 android:src="@android:drawable/ic_media_play"
-                android:contentDescription="播放/暂停"
+                android:contentDescription="Play or pause"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
                 android:scaleType="centerInside" />
@@ -110,7 +119,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_media_ff"
-                android:contentDescription="快进"
+                android:contentDescription="Fast forward"
                 android:scaleType="centerInside" />
 
         </LinearLayout>
@@ -127,6 +136,6 @@
         android:background="@drawable/circle_background"
         android:padding="16dp"
         android:visibility="gone"
-        android:contentDescription="播放状态" />
+        android:contentDescription="Playback status" />
 
 </FrameLayout>

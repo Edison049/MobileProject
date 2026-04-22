@@ -81,13 +81,13 @@ public class OrdersActivity extends AppCompatActivity {
             @Override
             public void onSuccess(User data) {
                 currentUser = data;
-                userInfoText.setText("用户: " + data.getName() + " | 积分余额: " + data.getCredits());
+                userInfoText.setText("User: " + data.getName() + " | Credits: " + data.getCredits());
             }
 
             @Override
             public void onError(String errorMessage) {
                 Utils.showToast(OrdersActivity.this, errorMessage);
-                userInfoText.setText("用户信息加载失败");
+                userInfoText.setText("Failed to load user information");
             }
         });
     }

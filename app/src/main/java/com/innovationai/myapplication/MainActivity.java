@@ -3,12 +3,16 @@ package com.innovationai.myapplication;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.innovationai.myapplication.activity.LoginActivity;
 import com.innovationai.myapplication.activity.MainMenuActivity;
 import com.innovationai.myapplication.data.AppRepository;
+import com.innovationai.myapplication.util.FirebaseUtil;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 启动Activity
@@ -17,6 +21,10 @@ import com.innovationai.myapplication.data.AppRepository;
 public class MainActivity extends AppCompatActivity {
 
     private static final int SPLASH_DELAY = 2000; // 启动页显示时间（毫秒）
+    private static final int NAVIGATION_FALLBACK_DELAY = 7000; // 初始化异常时的兜底跳转时间
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean hasNavigated = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,17 +32,32 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // 启动页期间初始化数据源，再决定进入登录页还是主菜单
-        new Handler().postDelayed(this::initializeAndNavigate, SPLASH_DELAY);
+        mainHandler.postDelayed(this::initializeAndNavigate, SPLASH_DELAY);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mainHandler.removeCallbacksAndMessages(null);
     }
 
     /**
      * 初始化数据后，根据会话状态导航到相应页面
      */
     private void initializeAndNavigate() {
-        AppRepository.getInstance().initialize(this, new AppRepository.ActionCallback() {
+        mainHandler.postDelayed(this::navigateToNextScreenSafely, NAVIGATION_FALLBACK_DELAY);
+        AppRepository repository = AppRepository.getInstance();
+        repository.initialize(this, new AppRepository.ActionCallback() {
             @Override
             public void onSuccess() {
-                navigateToNextScreen();
+                if (FirebaseUtil.isFirebaseConfigured(MainActivity.this) && !repository.isUsingFirebase(MainActivity.this)) {
+                    android.widget.Toast.makeText(
+                            MainActivity.this,
+                            repository.getFirebaseStatusMessage(MainActivity.this),
+                            android.widget.Toast.LENGTH_LONG
+                    ).show();
+                }
+                navigateToNextScreenSafely();
             }
 
             @Override
@@ -42,12 +65,17 @@ public class MainActivity extends AppCompatActivity {
                 android.widget.Toast.makeText(MainActivity.this,
                         errorMessage,
                         android.widget.Toast.LENGTH_SHORT).show();
-                navigateToNextScreen();
+                navigateToNextScreenSafely();
             }
         });
     }
 
-    private void navigateToNextScreen() {
+    private void navigateToNextScreenSafely() {
+        if (!hasNavigated.compareAndSet(false, true)) {
+            return;
+        }
+
+        mainHandler.removeCallbacksAndMessages(null);
         Intent intent = AppRepository.getInstance().isLoggedIn(this)
                 ? new Intent(MainActivity.this, MainMenuActivity.class)
                 : new Intent(MainActivity.this, LoginActivity.class);

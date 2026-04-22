@@ -101,13 +101,13 @@ public class RegisterActivity extends AppCompatActivity {
 
         // 显示加载状态
         registerButton.setEnabled(false);
-        registerButton.setText("注册中...");
+        registerButton.setText("Creating account...");
 
         AppRepository.getInstance().register(this, name, age, email, password,
                 new AppRepository.DataCallback<>() {
                     @Override
                     public void onSuccess(com.innovationai.myapplication.model.User data) {
-                        Utils.showToast(RegisterActivity.this, "注册成功！欢迎加入电影世界！");
+                        Utils.showToast(RegisterActivity.this, "Account created successfully. Welcome aboard!");
                         navigateToMainMenu();
                     }
 
@@ -132,10 +132,10 @@ public class RegisterActivity extends AppCompatActivity {
 
         // 验证姓名
         if (TextUtils.isEmpty(name)) {
-            nameInputLayout.setError("请输入姓名");
+            nameInputLayout.setError("Please enter your name");
             isValid = false;
         } else if (!Utils.isValidName(name)) {
-            nameInputLayout.setError("姓名至少2个字符");
+            nameInputLayout.setError("Name must be at least 2 characters");
             isValid = false;
         } else {
             nameInputLayout.setError(null);
@@ -143,29 +143,29 @@ public class RegisterActivity extends AppCompatActivity {
 
         // 验证年龄
         if (TextUtils.isEmpty(ageStr)) {
-            ageInputLayout.setError("请输入年龄");
+            ageInputLayout.setError("Please enter your age");
             isValid = false;
         } else {
             try {
                 int age = Integer.parseInt(ageStr);
                 if (!Utils.isValidAge(age)) {
-                    ageInputLayout.setError("年龄必须在13-120之间");
+                    ageInputLayout.setError("Age must be between 13 and 120");
                     isValid = false;
                 } else {
                     ageInputLayout.setError(null);
                 }
             } catch (NumberFormatException e) {
-                ageInputLayout.setError("请输入有效的年龄");
+                ageInputLayout.setError("Please enter a valid age");
                 isValid = false;
             }
         }
 
         // 验证邮箱
         if (TextUtils.isEmpty(email)) {
-            emailInputLayout.setError("请输入邮箱地址");
+            emailInputLayout.setError("Please enter your email address");
             isValid = false;
         } else if (!Utils.isValidEmail(email)) {
-            emailInputLayout.setError("请输入有效的邮箱地址");
+            emailInputLayout.setError("Please enter a valid email address");
             isValid = false;
         } else {
             emailInputLayout.setError(null);
@@ -173,10 +173,10 @@ public class RegisterActivity extends AppCompatActivity {
 
         // 验证密码
         if (TextUtils.isEmpty(password)) {
-            passwordInputLayout.setError("请输入密码");
+            passwordInputLayout.setError("Please enter your password");
             isValid = false;
         } else if (!Utils.isValidPassword(password)) {
-            passwordInputLayout.setError("密码至少6位");
+            passwordInputLayout.setError("Password must be at least 6 characters");
             isValid = false;
         } else {
             passwordInputLayout.setError(null);
@@ -190,7 +190,7 @@ public class RegisterActivity extends AppCompatActivity {
      */
     private void resetRegisterButton() {
         registerButton.setEnabled(true);
-        registerButton.setText("创建账户");
+        registerButton.setText("Create Account");
     }
 
     /**

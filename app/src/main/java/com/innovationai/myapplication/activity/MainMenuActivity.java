@@ -6,9 +6,12 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.view.View;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.button.MaterialButton;
 import com.innovationai.myapplication.R;
 import com.innovationai.myapplication.adapter.MovieAdapter;
@@ -17,6 +20,7 @@ import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
 import com.innovationai.myapplication.util.Utils;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,9 +35,14 @@ public class MainMenuActivity extends AppCompatActivity {
     private TextView userNameText;
     private TextView creditsText;
     private EditText searchEditText;
+    private View actionMoviesSection;
+    private View comedyMoviesSection;
+    private View dramaMoviesSection;
+    private View otherMoviesSection;
     private RecyclerView actionMoviesRecycler;
     private RecyclerView comedyMoviesRecycler;
     private RecyclerView dramaMoviesRecycler;
+    private RecyclerView otherMoviesRecycler;
     private MaterialButton homeButton;
     private MaterialButton cartButton;
     private MaterialButton ordersButton;
@@ -43,11 +52,13 @@ public class MainMenuActivity extends AppCompatActivity {
     private MovieAdapter actionMoviesAdapter;
     private MovieAdapter comedyMoviesAdapter;
     private MovieAdapter dramaMoviesAdapter;
+    private MovieAdapter otherMoviesAdapter;
 
     // 数据列表
     private List<Movie> actionMoviesList = new ArrayList<>();
     private List<Movie> comedyMoviesList = new ArrayList<>();
     private List<Movie> dramaMoviesList = new ArrayList<>();
+    private List<Movie> otherMoviesList = new ArrayList<>();
     private List<Movie> allMoviesList = new ArrayList<>(); // 用于搜索
 
     // 当前用户
@@ -92,9 +103,14 @@ public class MainMenuActivity extends AppCompatActivity {
         userNameText = findViewById(R.id.user_name_text);
         creditsText = findViewById(R.id.credits_text);
         searchEditText = findViewById(R.id.search_edit_text);
+        actionMoviesSection = findViewById(R.id.action_movies_section);
+        comedyMoviesSection = findViewById(R.id.comedy_movies_section);
+        dramaMoviesSection = findViewById(R.id.drama_movies_section);
+        otherMoviesSection = findViewById(R.id.other_movies_section);
         actionMoviesRecycler = findViewById(R.id.action_movies_recycler);
         comedyMoviesRecycler = findViewById(R.id.comedy_movies_recycler);
         dramaMoviesRecycler = findViewById(R.id.drama_movies_recycler);
+        otherMoviesRecycler = findViewById(R.id.other_movies_recycler);
         homeButton = findViewById(R.id.home_button);
         cartButton = findViewById(R.id.cart_button);
         ordersButton = findViewById(R.id.orders_button);
@@ -119,6 +135,11 @@ public class MainMenuActivity extends AppCompatActivity {
         dramaMoviesRecycler.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         dramaMoviesAdapter = new MovieAdapter(this, dramaMoviesList);
         dramaMoviesRecycler.setAdapter(dramaMoviesAdapter);
+
+        // 其他类型RecyclerView
+        otherMoviesRecycler.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        otherMoviesAdapter = new MovieAdapter(this, otherMoviesList);
+        otherMoviesRecycler.setAdapter(otherMoviesAdapter);
     }
 
     /**
@@ -128,7 +149,7 @@ public class MainMenuActivity extends AppCompatActivity {
         // 底部导航按钮
         homeButton.setOnClickListener(v -> {
             // 当前就在首页，无需操作
-            Utils.showToast(this, "已在首页");
+            Utils.showToast(this, "You are already on the Home screen");
         });
 
         cartButton.setOnClickListener(v -> {
@@ -187,24 +208,20 @@ public class MainMenuActivity extends AppCompatActivity {
                 actionMoviesList.clear();
                 comedyMoviesList.clear();
                 dramaMoviesList.clear();
+                otherMoviesList.clear();
 
                 for (Movie movie : data) {
                     allMoviesList.add(movie);
-                    String genre = movie.getGenre() == null ? "" : movie.getGenre().toLowerCase();
-                    if (genre.contains("action") || genre.contains("动作")) {
-                        actionMoviesList.add(movie);
-                    } else if (genre.contains("comedy") || genre.contains("喜剧")) {
-                        comedyMoviesList.add(movie);
-                    } else if (genre.contains("drama") || genre.contains("剧情")) {
-                        dramaMoviesList.add(movie);
-                    } else {
-                        actionMoviesList.add(movie);
-                    }
+                    addMovieToCategoryList(movie, actionMoviesList, comedyMoviesList,
+                            dramaMoviesList, otherMoviesList);
                 }
 
-                actionMoviesAdapter.updateMovies(actionMoviesList);
-                comedyMoviesAdapter.updateMovies(comedyMoviesList);
-                dramaMoviesAdapter.updateMovies(dramaMoviesList);
+                sortMovies(actionMoviesList);
+                sortMovies(comedyMoviesList);
+                sortMovies(dramaMoviesList);
+                sortMovies(otherMoviesList);
+                sortMovies(allMoviesList);
+                updateMovieSections(actionMoviesList, comedyMoviesList, dramaMoviesList, otherMoviesList);
             }
 
             @Override
@@ -238,10 +255,7 @@ public class MainMenuActivity extends AppCompatActivity {
      */
     private void filterMovies(String query) {
         if (query.isEmpty()) {
-            // 恢复原始数据
-            actionMoviesAdapter.updateMovies(actionMoviesList);
-            comedyMoviesAdapter.updateMovies(comedyMoviesList);
-            dramaMoviesAdapter.updateMovies(dramaMoviesList);
+            updateMovieSections(actionMoviesList, comedyMoviesList, dramaMoviesList, otherMoviesList);
             return;
         }
 
@@ -249,24 +263,21 @@ public class MainMenuActivity extends AppCompatActivity {
         List<Movie> filteredActionMovies = new ArrayList<>();
         List<Movie> filteredComedyMovies = new ArrayList<>();
         List<Movie> filteredDramaMovies = new ArrayList<>();
+        List<Movie> filteredOtherMovies = new ArrayList<>();
 
         for (Movie movie : allMoviesList) {
             if (movieMatchesQuery(movie, query)) {
-                String genre = movie.getGenre().toLowerCase();
-                if (genre.contains("action") || genre.contains("动作")) {
-                    filteredActionMovies.add(movie);
-                } else if (genre.contains("comedy") || genre.contains("喜剧")) {
-                    filteredComedyMovies.add(movie);
-                } else if (genre.contains("drama") || genre.contains("剧情")) {
-                    filteredDramaMovies.add(movie);
-                }
+                addMovieToCategoryList(movie, filteredActionMovies, filteredComedyMovies,
+                        filteredDramaMovies, filteredOtherMovies);
             }
         }
 
-        // 更新适配器
-        actionMoviesAdapter.updateMovies(filteredActionMovies);
-        comedyMoviesAdapter.updateMovies(filteredComedyMovies);
-        dramaMoviesAdapter.updateMovies(filteredDramaMovies);
+        sortMovies(filteredActionMovies);
+        sortMovies(filteredComedyMovies);
+        sortMovies(filteredDramaMovies);
+        sortMovies(filteredOtherMovies);
+        updateMovieSections(filteredActionMovies, filteredComedyMovies,
+                filteredDramaMovies, filteredOtherMovies);
     }
 
     /**
@@ -277,10 +288,56 @@ public class MainMenuActivity extends AppCompatActivity {
      */
     private boolean movieMatchesQuery(Movie movie, String query) {
         String lowerQuery = query.toLowerCase();
-        return movie.getTitle().toLowerCase().contains(lowerQuery) ||
-               movie.getDirector().toLowerCase().contains(lowerQuery) ||
-               movie.getCast().toLowerCase().contains(lowerQuery) ||
-               movie.getGenre().toLowerCase().contains(lowerQuery);
+        return safeText(movie.getTitle()).toLowerCase().contains(lowerQuery) ||
+               safeText(movie.getDirector()).toLowerCase().contains(lowerQuery) ||
+               safeText(movie.getCast()).toLowerCase().contains(lowerQuery) ||
+               safeText(movie.getGenre()).toLowerCase().contains(lowerQuery);
+    }
+
+    private void addMovieToCategoryList(Movie movie, List<Movie> actionMovies,
+                                        List<Movie> comedyMovies, List<Movie> dramaMovies,
+                                        List<Movie> otherMovies) {
+        String genre = safeText(movie.getGenre()).toLowerCase();
+        if (genre.contains("action") || genre.contains("动作")) {
+            actionMovies.add(movie);
+        } else if (genre.contains("comedy") || genre.contains("喜剧")) {
+            comedyMovies.add(movie);
+        } else if (genre.contains("drama") || genre.contains("剧情")) {
+            dramaMovies.add(movie);
+        } else {
+            otherMovies.add(movie);
+        }
+    }
+
+    private void sortMovies(List<Movie> movies) {
+        movies.sort((first, second) -> {
+            int ratingComparison = Float.compare(second.getRating(), first.getRating());
+            if (ratingComparison != 0) {
+                return ratingComparison;
+            }
+            return safeText(first.getTitle()).compareToIgnoreCase(safeText(second.getTitle()));
+        });
+    }
+
+    private void updateMovieSections(List<Movie> actionMovies, List<Movie> comedyMovies,
+                                     List<Movie> dramaMovies, List<Movie> otherMovies) {
+        actionMoviesAdapter.updateMovies(actionMovies);
+        comedyMoviesAdapter.updateMovies(comedyMovies);
+        dramaMoviesAdapter.updateMovies(dramaMovies);
+        otherMoviesAdapter.updateMovies(otherMovies);
+
+        updateSectionVisibility(actionMoviesSection, actionMovies);
+        updateSectionVisibility(comedyMoviesSection, comedyMovies);
+        updateSectionVisibility(dramaMoviesSection, dramaMovies);
+        updateSectionVisibility(otherMoviesSection, otherMovies);
+    }
+
+    private void updateSectionVisibility(View section, List<Movie> movies) {
+        section.setVisibility(movies.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value;
     }
 
     /**

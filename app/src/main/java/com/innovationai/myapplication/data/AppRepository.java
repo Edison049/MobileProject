@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -17,6 +19,7 @@ import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.Order;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.Constants;
+import com.innovationai.myapplication.util.DefaultMovieCatalog;
 import com.innovationai.myapplication.util.FirebaseUtil;
 import com.innovationai.myapplication.util.MovieMediaUtil;
 import com.innovationai.myapplication.util.SecurityUtil;
@@ -29,14 +32,20 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 应用统一数据仓库
  * 有Firebase配置时优先走Firestore，否则自动回退到本地持久化
  */
 public final class AppRepository {
+    private static final String TAG = "AppRepository";
     private static final String FIREBASE_BOOTSTRAP_PREF = "firebase_bootstrap_state";
     private static final String KEY_LOCAL_SYNC_COMPLETED = "local_sync_completed";
+    private static final String KEY_BOOTSTRAP_VERSION = "bootstrap_version";
+    private static final int CURRENT_BOOTSTRAP_VERSION = 2;
+    private static final long FIREBASE_INIT_TIMEOUT_MS = 15_000L;
+    private static final long FIREBASE_RETRY_INTERVAL_MS = 30_000L;
 
     public interface DataCallback<T> {
         void onSuccess(T data);
@@ -53,6 +62,9 @@ public final class AppRepository {
     private final LocalDataStore localDataStore = LocalDataStore.getInstance();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile boolean useLocalFallback;
+    private volatile boolean forceLocalModeForTesting;
+    private volatile long lastFirebaseAttemptElapsedMs;
+    private volatile String firebaseStatusMessage = "Firebase has not been initialized yet";
 
     private AppRepository() {
     }
@@ -62,30 +74,52 @@ public final class AppRepository {
     }
 
     public boolean isUsingFirebase(Context context) {
-        return FirebaseUtil.isFirebaseConfigured(context) && !useLocalFallback;
+        return FirebaseUtil.isFirebaseConfigured(context)
+                && !useLocalFallback
+                && !forceLocalModeForTesting;
     }
 
     public String getDataModeLabel(Context context) {
         if (!FirebaseUtil.isFirebaseConfigured(context)) {
-            return "本地模式";
+            return "Local mode";
         }
-        return useLocalFallback ? "本地模式（Firebase离线）" : "Firebase";
+        return useLocalFallback ? "Local mode (Firebase offline)" : "Firebase";
+    }
+
+    public String getFirebaseStatusMessage(Context context) {
+        if (!FirebaseUtil.isFirebaseConfigured(context)) {
+            return "Firebase configuration file was not found";
+        }
+        if (forceLocalModeForTesting) {
+            return "Test mode is enabled, so local data is being used";
+        }
+        return firebaseStatusMessage;
     }
 
     public void initialize(Context context, ActionCallback callback) {
         localDataStore.ensureInitialized(context);
+        boolean bootstrapRefreshRequired = requiresBootstrapRefresh(context);
+        if (forceLocalModeForTesting) {
+            firebaseStatusMessage = "Test mode is enabled, so local data is being used";
+            postActionSuccess(callback);
+            return;
+        }
         if (!FirebaseUtil.isFirebaseConfigured(context)) {
+            firebaseStatusMessage = "Firebase configuration file was not found";
             postActionSuccess(callback);
             return;
         }
 
-        if (useLocalFallback) {
+        if (useLocalFallback && !shouldRetryFirebaseNow()) {
             postActionSuccess(callback);
             return;
         }
+
+        lastFirebaseAttemptElapsedMs = SystemClock.elapsedRealtime();
 
         if (!FirebaseUtil.hasUsableNetwork(context)) {
             useLocalFallback = true;
+            firebaseStatusMessage = "No network connection is available, so the app switched to local mode";
             postActionSuccess(callback);
             return;
         }
@@ -93,9 +127,23 @@ public final class AppRepository {
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
             useLocalFallback = true;
+            firebaseStatusMessage = "Firebase initialization failed because Firestore could not be created";
             postActionSuccess(callback);
             return;
         }
+
+        AtomicBoolean initializationHandled = new AtomicBoolean(false);
+        Runnable timeoutRunnable = () -> {
+            if (!initializationHandled.compareAndSet(false, true)) {
+                return;
+            }
+
+            firebaseStatusMessage = "Firebase timed out after 15 seconds, so the app switched to local mode";
+            Log.w(TAG, firebaseStatusMessage);
+            useLocalFallback = true;
+            postActionSuccess(callback);
+        };
+        mainHandler.postDelayed(timeoutRunnable, FIREBASE_INIT_TIMEOUT_MS);
 
         List<Task<?>> setupTasks = new ArrayList<>();
         setupTasks.add(ensureUserDocument(db, Constants.ADMIN_USER_ID, buildUserMap(
@@ -129,77 +177,40 @@ public final class AppRepository {
                 true
         )));
 
-        setupTasks.add(ensureMovieDocument(db, "movie_avengers4", buildMovieMap(
-                "movie_avengers4",
-                "复仇者联盟 4",
-                "超级英雄们集结对抗灭霸",
-                150,
-                MovieMediaUtil.drawableRef("avengers4"),
-                MovieMediaUtil.rawRef("avenger_trailer"),
-                "动作",
-                8.5f,
-                "罗素兄弟",
-                "小罗伯特·唐尼，克里斯·埃文斯",
-                true
-        )));
-        setupTasks.add(ensureMovieDocument(db, "movie_fast9", buildMovieMap(
-                "movie_fast9",
-                "速度与激情 9",
-                "多米尼克和他的家人面临新的威胁",
-                120,
-                MovieMediaUtil.drawableRef("fast_and_furious"),
-                MovieMediaUtil.rawRef("fastandfurious_trailer"),
-                "动作",
-                7.2f,
-                "林诣彬",
-                "范·迪塞尔，米歇尔·罗德里格兹",
-                true
-        )));
-        setupTasks.add(ensureMovieDocument(db, "movie_hangover", buildMovieMap(
-                "movie_hangover",
-                "宿醉",
-                "四个朋友拉斯维加斯狂欢后的疯狂经历",
-                80,
-                MovieMediaUtil.drawableRef("ic_launcher_foreground"),
-                MovieMediaUtil.rawRef("seabird1"),
-                "喜剧",
-                7.8f,
-                "托德·菲利普斯",
-                "布莱德利·库珀，艾德·赫尔姆斯",
-                true
-        )));
-        setupTasks.add(ensureMovieDocument(db, "movie_shawshank", buildMovieMap(
-                "movie_shawshank",
-                "肖申克的救赎",
-                "银行家安迪在监狱中的希望之旅",
-                100,
-                MovieMediaUtil.drawableRef("ic_launcher_foreground"),
-                MovieMediaUtil.rawRef("seabird1"),
-                "剧情",
-                9.7f,
-                "弗兰克·德拉邦特",
-                "蒂姆·罗宾斯，摩根·弗里曼",
-                true
-        )));
+        for (Movie defaultMovie : DefaultMovieCatalog.getDefaultMovies()) {
+            Task<?> defaultMovieTask = bootstrapRefreshRequired
+                    ? upsertMovieDocument(db, defaultMovie.getId(), movieToMap(defaultMovie, true))
+                    : ensureMovieDocument(db, defaultMovie.getId(), movieToMap(defaultMovie, true));
+            setupTasks.add(defaultMovieTask);
+        }
 
-        if (!isLocalSyncCompleted(context)) {
+        if (bootstrapRefreshRequired || !isLocalSyncCompleted(context)) {
             setupTasks.addAll(buildLocalSyncTasks(context, db));
         }
 
         Tasks.whenAllComplete(setupTasks)
                 .addOnCompleteListener(task -> {
+                    if (!initializationHandled.compareAndSet(false, true)) {
+                        return;
+                    }
+
+                    mainHandler.removeCallbacks(timeoutRunnable);
                     List<? extends Task<?>> completedTasks = task.getResult();
                     String failureMessage = extractFailureMessage(completedTasks);
                     if (failureMessage != null) {
+                        firebaseStatusMessage = "Firebase initialization failed: " + failureMessage;
+                        Log.w(TAG, firebaseStatusMessage);
                         useLocalFallback = true;
                         postActionSuccess(callback);
                         return;
                     }
 
                     useLocalFallback = false;
-                    if (!isLocalSyncCompleted(context)) {
+                    firebaseStatusMessage = "Firebase is connected";
+                    if (bootstrapRefreshRequired || !isLocalSyncCompleted(context)) {
                         markLocalSyncCompleted(context);
                     }
+                    markBootstrapVersion(context);
                     postActionSuccess(callback);
                 });
     }
@@ -212,16 +223,23 @@ public final class AppRepository {
         SessionManager.clearSession(context);
     }
 
+    public void setForceLocalModeForTesting(boolean enabled) {
+        forceLocalModeForTesting = enabled;
+        if (enabled) {
+            useLocalFallback = false;
+        }
+    }
+
     public void login(Context context, String identifier, String password, DataCallback<User> callback) {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             User user = localDataStore.findActiveUserByLogin(context, identifier);
             if (user == null) {
-                postError(callback, "用户名或邮箱不存在");
+                postError(callback, "Username or email was not found");
                 return;
             }
             if (!SecurityUtil.matches(password, user.getPasswordHash())) {
-                postError(callback, "密码错误");
+                postError(callback, "Incorrect password");
                 return;
             }
             SessionManager.saveCurrentUserId(context, user.getUid());
@@ -245,7 +263,7 @@ public final class AppRepository {
     private void loginWithFirebase(Context context, String identifier, String password, DataCallback<User> callback) {
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -269,19 +287,19 @@ public final class AppRepository {
                     }
 
                     if (matchedUser == null) {
-                        postError(callback, "用户名或邮箱不存在");
+                        postError(callback, "Username or email was not found");
                         return;
                     }
 
                     if (!SecurityUtil.matches(password, matchedUser.getPasswordHash())) {
-                        postError(callback, "密码错误");
+                        postError(callback, "Incorrect password");
                         return;
                     }
 
                     SessionManager.saveCurrentUserId(context, matchedUser.getUid());
                     postSuccess(callback, matchedUser);
                 })
-                .addOnFailureListener(e -> postError(callback, "登录失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Login failed: " + e.getMessage()));
     }
 
     public void register(Context context, String name, int age, String email, String password,
@@ -296,7 +314,7 @@ public final class AppRepository {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             if (localDataStore.userNameOrEmailExists(context, name, email, null)) {
-                postError(callback, "用户名或邮箱已存在");
+                postError(callback, "The username or email already exists");
                 return;
             }
 
@@ -321,7 +339,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -333,7 +351,7 @@ public final class AppRepository {
                         String existingName = safeLower(document.getString("name"));
                         String existingEmail = safeLower(document.getString("email"));
                         if (safeLower(name).equals(existingName) || safeLower(email).equals(existingEmail)) {
-                            postError(callback, "用户名或邮箱已存在");
+                            postError(callback, "The username or email already exists");
                             return;
                         }
                     }
@@ -357,15 +375,15 @@ public final class AppRepository {
                                 }
                                 postSuccess(callback, user);
                             })
-                            .addOnFailureListener(e -> postError(callback, "创建用户失败：" + e.getMessage()));
+                            .addOnFailureListener(e -> postError(callback, "Failed to create user: " + e.getMessage()));
                 })
-                .addOnFailureListener(e -> postError(callback, "创建用户失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to create user: " + e.getMessage()));
     }
 
     public void loadCurrentUser(Context context, DataCallback<User> callback) {
         String currentUserId = SessionManager.getCurrentUserId(context);
         if (currentUserId == null) {
-            postError(callback, "当前未登录");
+            postError(callback, "No user is currently signed in");
             return;
         }
 
@@ -373,6 +391,20 @@ public final class AppRepository {
     }
 
     public void loadUserById(Context context, String userId, DataCallback<User> callback) {
+        initialize(context, new ActionCallback() {
+            @Override
+            public void onSuccess() {
+                loadUserByIdInternal(context, userId, callback);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                postError(callback, errorMessage);
+            }
+        });
+    }
+
+    private void loadUserByIdInternal(Context context, String userId, DataCallback<User> callback) {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             User user = localDataStore.getUserById(context, userId);
@@ -380,7 +412,7 @@ public final class AppRepository {
                 if (userId.equals(SessionManager.getCurrentUserId(context))) {
                     SessionManager.clearSession(context);
                 }
-                postError(callback, "用户不存在或已被停用");
+                postError(callback, "The user was not found or has been deactivated");
                 return;
             }
             postSuccess(callback, user);
@@ -389,7 +421,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -402,15 +434,29 @@ public final class AppRepository {
                         if (userId.equals(SessionManager.getCurrentUserId(context))) {
                             SessionManager.clearSession(context);
                         }
-                        postError(callback, "用户不存在或已被停用");
+                        postError(callback, "The user was not found or has been deactivated");
                         return;
                     }
                     postSuccess(callback, user);
                 })
-                .addOnFailureListener(e -> postError(callback, "加载用户失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to load user: " + e.getMessage()));
     }
 
     public void loadMovies(Context context, DataCallback<List<Movie>> callback) {
+        initialize(context, new ActionCallback() {
+            @Override
+            public void onSuccess() {
+                loadMoviesInternal(context, callback);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                postError(callback, errorMessage);
+            }
+        });
+    }
+
+    private void loadMoviesInternal(Context context, DataCallback<List<Movie>> callback) {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             List<Movie> movies = new ArrayList<>(localDataStore.getActiveMovies(context));
@@ -421,7 +467,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -439,15 +485,29 @@ public final class AppRepository {
                     sortMoviesByTitle(movies);
                     postSuccess(callback, movies);
                 })
-                .addOnFailureListener(e -> postError(callback, "加载电影失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to load movies: " + e.getMessage()));
     }
 
     public void loadMovieById(Context context, String movieId, DataCallback<Movie> callback) {
+        initialize(context, new ActionCallback() {
+            @Override
+            public void onSuccess() {
+                loadMovieByIdInternal(context, movieId, callback);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                postError(callback, errorMessage);
+            }
+        });
+    }
+
+    private void loadMovieByIdInternal(Context context, String movieId, DataCallback<Movie> callback) {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             Movie movie = localDataStore.getMovieById(context, movieId);
             if (movie == null) {
-                postError(callback, "电影不存在或已被删除");
+                postError(callback, "The movie was not found or has been removed");
                 return;
             }
             postSuccess(callback, movie);
@@ -456,7 +516,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -467,12 +527,12 @@ public final class AppRepository {
                     Movie movie = documentToMovie(context, documentSnapshot);
                     Boolean active = documentSnapshot.getBoolean("active");
                     if (movie == null || Boolean.FALSE.equals(active)) {
-                        postError(callback, "电影不存在或已被删除");
+                        postError(callback, "The movie was not found or has been removed");
                         return;
                     }
                     postSuccess(callback, movie);
                 })
-                .addOnFailureListener(e -> postError(callback, "加载电影失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to load movie: " + e.getMessage()));
     }
 
     public void addMovie(Context context, Movie movie, ActionCallback callback) {
@@ -489,7 +549,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postActionError(callback, "Firebase 未配置完成");
+            postActionError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -497,7 +557,7 @@ public final class AppRepository {
                 .document(movie.getId())
                 .set(movieToMap(movie, true))
                 .addOnSuccessListener(unused -> postActionSuccess(callback))
-                .addOnFailureListener(e -> postActionError(callback, "添加电影失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postActionError(callback, "Failed to add movie: " + e.getMessage()));
     }
 
     public void deleteMovie(Context context, String movieId, ActionCallback callback) {
@@ -506,14 +566,14 @@ public final class AppRepository {
             if (localDataStore.deactivateMovie(context, movieId)) {
                 postActionSuccess(callback);
             } else {
-                postActionError(callback, "删除电影失败");
+                postActionError(callback, "Failed to delete the movie");
             }
             return;
         }
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postActionError(callback, "Firebase 未配置完成");
+            postActionError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -521,10 +581,24 @@ public final class AppRepository {
                 .document(movieId)
                 .update("active", false)
                 .addOnSuccessListener(unused -> postActionSuccess(callback))
-                .addOnFailureListener(e -> postActionError(callback, "删除电影失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postActionError(callback, "Failed to delete the movie: " + e.getMessage()));
     }
 
     public void loadUsers(Context context, DataCallback<List<User>> callback) {
+        initialize(context, new ActionCallback() {
+            @Override
+            public void onSuccess() {
+                loadUsersInternal(context, callback);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                postError(callback, errorMessage);
+            }
+        });
+    }
+
+    private void loadUsersInternal(Context context, DataCallback<List<User>> callback) {
         if (!isUsingFirebase(context)) {
             localDataStore.ensureInitialized(context);
             List<User> users = new ArrayList<>(localDataStore.getActiveUsers(context));
@@ -535,7 +609,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -553,13 +627,13 @@ public final class AppRepository {
                     sortUsersByName(users);
                     postSuccess(callback, users);
                 })
-                .addOnFailureListener(e -> postError(callback, "加载用户失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to load users: " + e.getMessage()));
     }
 
     public void deleteUser(Context context, String userId, ActionCallback callback) {
         String currentUserId = SessionManager.getCurrentUserId(context);
         if (userId != null && userId.equals(currentUserId)) {
-            postActionError(callback, "不能删除当前正在登录的管理员");
+            postActionError(callback, "You cannot delete the administrator who is currently signed in");
             return;
         }
 
@@ -568,14 +642,14 @@ public final class AppRepository {
             if (localDataStore.deactivateUser(context, userId)) {
                 postActionSuccess(callback);
             } else {
-                postActionError(callback, "删除用户失败");
+                postActionError(callback, "Failed to delete the user");
             }
             return;
         }
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postActionError(callback, "Firebase 未配置完成");
+            postActionError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -583,13 +657,13 @@ public final class AppRepository {
                 .document(userId)
                 .update("active", false)
                 .addOnSuccessListener(unused -> postActionSuccess(callback))
-                .addOnFailureListener(e -> postActionError(callback, "删除用户失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postActionError(callback, "Failed to delete the user: " + e.getMessage()));
     }
 
     public void topUpCredits(Context context, int amount, DataCallback<User> callback) {
         String currentUserId = SessionManager.getCurrentUserId(context);
         if (currentUserId == null) {
-            postError(callback, "请先登录");
+            postError(callback, "Please sign in first");
             return;
         }
 
@@ -597,7 +671,7 @@ public final class AppRepository {
             localDataStore.ensureInitialized(context);
             User user = localDataStore.getUserById(context, currentUserId);
             if (user == null || !user.isActive()) {
-                postError(callback, "用户不存在或已被停用");
+                postError(callback, "The user was not found or has been deactivated");
                 return;
             }
 
@@ -608,7 +682,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -620,7 +694,7 @@ public final class AppRepository {
             transaction.update(userRef, "credits", newCredits);
             return newCredits;
         }).addOnSuccessListener(unused -> loadUserById(context, currentUserId, callback))
-                .addOnFailureListener(e -> postError(callback, "充值失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Top-up failed: " + e.getMessage()));
     }
 
     public void buyMovie(Context context, Movie movie, DataCallback<User> callback) {
@@ -636,7 +710,7 @@ public final class AppRepository {
     private void purchaseCartItems(Context context, List<CartItem> cartItems, DataCallback<User> callback) {
         String currentUserId = SessionManager.getCurrentUserId(context);
         if (currentUserId == null) {
-            postError(callback, "请先登录");
+            postError(callback, "Please sign in first");
             return;
         }
 
@@ -650,11 +724,11 @@ public final class AppRepository {
             localDataStore.ensureInitialized(context);
             User user = localDataStore.getUserById(context, currentUserId);
             if (user == null || !user.isActive()) {
-                postError(callback, "用户不存在或已被停用");
+                postError(callback, "The user was not found or has been deactivated");
                 return;
             }
             if (user.getCredits() < purchaseTotal) {
-                postError(callback, "积分不足，无法完成购买");
+                postError(callback, "You do not have enough credits to complete this purchase");
                 return;
             }
 
@@ -666,7 +740,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -686,25 +760,25 @@ public final class AppRepository {
             Long credits = userSnapshot.getLong("credits");
 
             if (Boolean.FALSE.equals(active)) {
-                throw new IllegalStateException("当前用户已被停用");
+                throw new IllegalStateException("The current user has been deactivated");
             }
 
             int currentCredits = credits == null ? 0 : credits.intValue();
             if (currentCredits < purchaseTotal) {
-                throw new IllegalStateException("积分不足，无法完成购买");
+                throw new IllegalStateException("You do not have enough credits to complete this purchase");
             }
 
             transaction.update(userRef, "credits", currentCredits - purchaseTotal);
             transaction.set(orderRef, orderMap);
             return true;
         }).addOnSuccessListener(unused -> loadUserById(context, currentUserId, callback))
-                .addOnFailureListener(e -> postError(callback, e.getMessage() == null ? "购买失败" : e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, e.getMessage() == null ? "Purchase failed" : e.getMessage()));
     }
 
     public void loadOrders(Context context, DataCallback<List<Order>> callback) {
         String currentUserId = SessionManager.getCurrentUserId(context);
         if (currentUserId == null) {
-            postError(callback, "请先登录");
+            postError(callback, "Please sign in first");
             return;
         }
 
@@ -718,7 +792,7 @@ public final class AppRepository {
 
         FirebaseFirestore db = FirebaseUtil.getFirestore(context);
         if (db == null) {
-            postError(callback, "Firebase 未配置完成");
+            postError(callback, "Firebase is not fully configured");
             return;
         }
 
@@ -733,7 +807,7 @@ public final class AppRepository {
                     sortOrdersByLatest(orders);
                     postSuccess(callback, orders);
                 })
-                .addOnFailureListener(e -> postError(callback, "加载订单失败：" + e.getMessage()));
+                .addOnFailureListener(e -> postError(callback, "Failed to load orders: " + e.getMessage()));
     }
 
     private void sortMoviesByTitle(List<Movie> movies) {
@@ -780,6 +854,12 @@ public final class AppRepository {
         });
     }
 
+    private Task<?> upsertMovieDocument(FirebaseFirestore db, String documentId, Map<String, Object> data) {
+        return db.collection(Constants.COLLECTION_MOVIES)
+                .document(documentId)
+                .set(data);
+    }
+
     private Map<String, Object> buildUserMap(String uid, String name, int age, String email,
                                              String passwordHash, int credits, String role, boolean active) {
         Map<String, Object> data = new HashMap<>();
@@ -805,7 +885,7 @@ public final class AppRepository {
         data.put("price", price);
         data.put("posterUrl", posterUrl);
         data.put("previewVideoUrl", previewVideoUrl);
-        data.put("genre", genre);
+        data.put("genre", DefaultMovieCatalog.normalizeGenre(genre));
         data.put("rating", rating);
         data.put("director", director);
         data.put("cast", cast);
@@ -848,7 +928,7 @@ public final class AppRepository {
         orderMap.put("orderId", orderId);
         orderMap.put("userId", userId);
         orderMap.put("totalAmount", totalAmount);
-        orderMap.put("status", "已完成");
+        orderMap.put("status", "Completed");
         orderMap.put("timestamp", timestamp == null ? Timestamp.now() : timestamp);
 
         List<Map<String, Object>> movies = new ArrayList<>();
@@ -907,7 +987,7 @@ public final class AppRepository {
 
     private String extractFailureMessage(List<? extends Task<?>> tasks) {
         if (tasks == null) {
-            return "未知错误";
+            return "Unknown error";
         }
 
         for (Task<?> task : tasks) {
@@ -919,7 +999,7 @@ public final class AppRepository {
             if (exception != null && exception.getMessage() != null && !exception.getMessage().trim().isEmpty()) {
                 return exception.getMessage();
             }
-            return "未知错误";
+            return "Unknown error";
         }
         return null;
     }
@@ -932,9 +1012,21 @@ public final class AppRepository {
         getBootstrapPrefs(context).edit().putBoolean(KEY_LOCAL_SYNC_COMPLETED, true).apply();
     }
 
+    private boolean requiresBootstrapRefresh(Context context) {
+        return getBootstrapPrefs(context).getInt(KEY_BOOTSTRAP_VERSION, 0) < CURRENT_BOOTSTRAP_VERSION;
+    }
+
+    private void markBootstrapVersion(Context context) {
+        getBootstrapPrefs(context).edit().putInt(KEY_BOOTSTRAP_VERSION, CURRENT_BOOTSTRAP_VERSION).apply();
+    }
+
     private SharedPreferences getBootstrapPrefs(Context context) {
         return context.getApplicationContext()
                 .getSharedPreferences(FIREBASE_BOOTSTRAP_PREF, Context.MODE_PRIVATE);
+    }
+
+    private boolean shouldRetryFirebaseNow() {
+        return SystemClock.elapsedRealtime() - lastFirebaseAttemptElapsedMs >= FIREBASE_RETRY_INTERVAL_MS;
     }
 
     private User documentToUser(Context context, DocumentSnapshot document) {
@@ -972,11 +1064,12 @@ public final class AppRepository {
         movie.setPrice(price == null ? 0 : price.intValue());
         movie.setPosterUrl(document.getString("posterUrl"));
         movie.setPreviewVideoUrl(document.getString("previewVideoUrl"));
-        movie.setGenre(document.getString("genre"));
+        movie.setGenre(DefaultMovieCatalog.normalizeGenre(document.getString("genre")));
         Double rating = document.getDouble("rating");
         movie.setRating(rating == null ? 0f : rating.floatValue());
         movie.setDirector(document.getString("director"));
         movie.setCast(document.getString("cast"));
+        DefaultMovieCatalog.normalizeMovie(movie);
         MovieMediaUtil.hydrateLocalResources(context, movie);
         return movie;
     }
@@ -988,7 +1081,7 @@ public final class AppRepository {
         order.setUserId(document.getString("userId"));
         Long totalAmount = document.getLong("totalAmount");
         order.setTotalAmount(totalAmount == null ? 0 : totalAmount.intValue());
-        order.setStatus(document.getString("status"));
+        order.setStatus(DefaultMovieCatalog.normalizeOrderStatus(document.getString("status")));
         Timestamp timestamp = document.getTimestamp("timestamp");
         order.setTimestamp(timestamp == null ? Timestamp.now() : timestamp);
 
@@ -1018,11 +1111,12 @@ public final class AppRepository {
         movie.setPrice(price == null ? 0 : price.intValue());
         movie.setPosterUrl((String) movieMap.get("posterUrl"));
         movie.setPreviewVideoUrl((String) movieMap.get("previewVideoUrl"));
-        movie.setGenre((String) movieMap.get("genre"));
+        movie.setGenre(DefaultMovieCatalog.normalizeGenre((String) movieMap.get("genre")));
         Number rating = (Number) movieMap.get("rating");
         movie.setRating(rating == null ? 0f : rating.floatValue());
         movie.setDirector((String) movieMap.get("director"));
         movie.setCast((String) movieMap.get("cast"));
+        DefaultMovieCatalog.normalizeMovie(movie);
         MovieMediaUtil.hydrateLocalResources(context, movie);
         return movie;
     }

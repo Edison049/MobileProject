@@ -8,6 +8,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -34,13 +39,16 @@ import com.innovationai.myapplication.model.Movie;
 import com.innovationai.myapplication.model.User;
 import com.innovationai.myapplication.util.CartManager;
 import com.innovationai.myapplication.util.Constants;
+import com.innovationai.myapplication.util.MovieMediaUtil;
 import com.innovationai.myapplication.util.Utils;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 电影详情Activity
@@ -50,6 +58,7 @@ public class MovieDetailActivity extends AppCompatActivity {
     private static final String TAG = "MovieDetailActivity";
     private static final long SEEK_INTERVAL_MS = 10_000L;
     private static final long CONTROLS_HIDE_DELAY_MS = 3_000L;
+    private static final String YOUTUBE_EMBED_ORIGIN = "https://appassets.androidplatform.net";
     private final AppRepository repository = AppRepository.getInstance();
 
     // UI 组件
@@ -62,6 +71,8 @@ public class MovieDetailActivity extends AppCompatActivity {
     private TextView moviePriceDetail;
     private FrameLayout videoPreviewPlayer;
     private PlayerView videoView;
+    private WebView youtubeWebView;
+    private View gradientOverlay;
     private SeekBar seekBar;
     private TextView currentTimeText;
     private TextView totalTimeText;
@@ -85,6 +96,7 @@ public class MovieDetailActivity extends AppCompatActivity {
     private boolean isPlaying = false;
     private boolean isPrepared = false;
     private boolean isUserSeeking = false;
+    private boolean isEmbeddedWebPlayer = false;
     private long videoDurationMs = 0L;
     private long pendingSeekPositionMs = C.TIME_UNSET;
 
@@ -100,7 +112,7 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         movieId = getIntent().getStringExtra(Constants.EXTRA_MOVIE_ID);
         if (movieId == null) {
-            Utils.showToast(this, "电影信息错误");
+            Utils.showToast(this, "Movie information is invalid");
             finish();
             return;
         }
@@ -117,6 +129,17 @@ public class MovieDetailActivity extends AppCompatActivity {
         if (player != null && player.isPlaying()) {
             player.pause();
         }
+        if (youtubeWebView != null) {
+            youtubeWebView.onPause();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (youtubeWebView != null) {
+            youtubeWebView.onResume();
+        }
     }
 
     @Override
@@ -125,6 +148,10 @@ public class MovieDetailActivity extends AppCompatActivity {
         progressHandler.removeCallbacksAndMessages(null);
         hideHandler.removeCallbacksAndMessages(null);
         releasePlayer();
+        if (youtubeWebView != null) {
+            youtubeWebView.destroy();
+            youtubeWebView = null;
+        }
     }
 
     /**
@@ -142,6 +169,8 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         if (videoPreviewPlayer != null) {
             videoView = videoPreviewPlayer.findViewById(R.id.video_view);
+            youtubeWebView = videoPreviewPlayer.findViewById(R.id.youtube_web_view);
+            gradientOverlay = videoPreviewPlayer.findViewById(R.id.player_gradient_overlay);
             seekBar = videoPreviewPlayer.findViewById(R.id.seek_bar);
             currentTimeText = videoPreviewPlayer.findViewById(R.id.current_time_text);
             totalTimeText = videoPreviewPlayer.findViewById(R.id.total_time_text);
@@ -199,11 +228,14 @@ public class MovieDetailActivity extends AppCompatActivity {
         movieTitleDetail.setText(currentMovie.getTitle());
         movieRatingDetail.setText(String.format(Locale.getDefault(), "%.1f★", currentMovie.getRating()));
         movieGenreDetail.setText(currentMovie.getGenre());
-        movieDurationDetail.setText("120分钟");
-        moviePriceDetail.setText("价格: " + currentMovie.getPrice() + "积分");
+        movieDurationDetail.setText("120 min");
+        moviePriceDetail.setText("Price: " + currentMovie.getPrice() + " credits");
         movieDirectorDetail.setText(currentMovie.getDirector());
         movieCastDetail.setText(currentMovie.getCast());
-        movieDescriptionDetail.setText(currentMovie.getDescription());
+        String description = currentMovie.getDescription();
+        movieDescriptionDetail.setText(description == null || description.trim().isEmpty()
+                ? "No synopsis available"
+                : description);
 
         if (currentMovie.isLocalImage()) {
             Glide.with(this)
@@ -228,7 +260,7 @@ public class MovieDetailActivity extends AppCompatActivity {
     private void setupVideoPlayer() {
         if (currentMovie == null || currentMovie.getPreviewVideoUrl() == null
                 || currentMovie.getPreviewVideoUrl().trim().isEmpty()) {
-            Utils.showToast(this, "视频地址为空");
+            Utils.showToast(this, "Video URL is empty");
             return;
         }
 
@@ -236,12 +268,18 @@ public class MovieDetailActivity extends AppCompatActivity {
                 || totalTimeText == null || playPauseButton == null
                 || rewindButton == null || fastForwardButton == null
                 || controlPanel == null) {
-            Utils.showToast(this, "播放器初始化失败");
+            Utils.showToast(this, "Failed to initialize the player");
             return;
         }
 
         releasePlayer();
         resetPlayerState();
+        if (MovieMediaUtil.isYouTubeUrl(currentMovie.getPreviewVideoUrl())) {
+            setupYouTubePlayer(currentMovie.getPreviewVideoUrl().trim());
+            return;
+        }
+
+        showNativePlayerUi();
         configureSeekBar();
         configurePlayerControls();
 
@@ -323,7 +361,7 @@ public class MovieDetailActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Failed to set up player", e);
             resetPlayerState();
-            Utils.showToast(this, "播放器初始化失败：" + e.getMessage());
+            Utils.showToast(this, "Failed to initialize the player: " + e.getMessage());
         }
     }
 
@@ -347,7 +385,7 @@ public class MovieDetailActivity extends AppCompatActivity {
                 return;
             }
 
-            long newPosition = Math.max(0L, player.getCurrentPosition() - SEEK_INTERVAL_MS);
+            long newPosition = Math.max(0L, getCurrentPlaybackPositionMs() - SEEK_INTERVAL_MS);
             seekToPosition(newPosition);
             hideControlsDelayed(CONTROLS_HIDE_DELAY_MS);
             showCenterIndicator(false);
@@ -358,13 +396,131 @@ public class MovieDetailActivity extends AppCompatActivity {
                 return;
             }
 
-            long newPosition = Math.min(videoDurationMs, player.getCurrentPosition() + SEEK_INTERVAL_MS);
+            long newPosition = Math.min(
+                    getEffectiveDurationMs(),
+                    getCurrentPlaybackPositionMs() + SEEK_INTERVAL_MS
+            );
             seekToPosition(newPosition);
             hideControlsDelayed(CONTROLS_HIDE_DELAY_MS);
             showCenterIndicator(true);
         });
 
         videoView.setOnClickListener(v -> toggleControls());
+    }
+
+    private void setupYouTubePlayer(String youtubeUrl) {
+        if (youtubeWebView == null) {
+            Utils.showToast(this, "Failed to initialize the YouTube player");
+            return;
+        }
+
+        String embedUrl = MovieMediaUtil.buildYouTubeEmbedUrl(youtubeUrl);
+        if (embedUrl == null) {
+            Utils.showToast(this, "Unable to recognize the YouTube video URL");
+            return;
+        }
+
+        isEmbeddedWebPlayer = true;
+        isPrepared = true;
+        showYouTubePlayerUi();
+
+        WebSettings webSettings = youtubeWebView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setMediaPlaybackRequiresUserGesture(false);
+        webSettings.setAllowFileAccess(false);
+        webSettings.setLoadWithOverviewMode(true);
+        webSettings.setUseWideViewPort(true);
+        webSettings.setSupportZoom(false);
+        normalizeEmbeddedPlayerUserAgent(webSettings);
+        youtubeWebView.setVerticalScrollBarEnabled(false);
+        youtubeWebView.setHorizontalScrollBarEnabled(false);
+        youtubeWebView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        youtubeWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (request == null || !request.isForMainFrame()) {
+                    return false;
+                }
+                return shouldBlockYouTubeNavigation(request.getUrl() == null
+                        ? null
+                        : request.getUrl().toString());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return shouldBlockYouTubeNavigation(url);
+            }
+        });
+        youtubeWebView.setWebChromeClient(new WebChromeClient());
+        youtubeWebView.setBackgroundColor(android.graphics.Color.BLACK);
+        String youtubeReferer = YOUTUBE_EMBED_ORIGIN + "/embedded/" + getPackageName();
+        String embedUrlWithOrigin = Uri.parse(embedUrl)
+                .buildUpon()
+                .appendQueryParameter("origin", YOUTUBE_EMBED_ORIGIN)
+                .appendQueryParameter("widget_referrer", youtubeReferer)
+                .build()
+                .toString();
+        Map<String, String> additionalHeaders = new HashMap<>();
+        additionalHeaders.put("Referer", youtubeReferer);
+        youtubeWebView.loadUrl(embedUrlWithOrigin, additionalHeaders);
+    }
+
+    private void showNativePlayerUi() {
+        if (videoView != null) {
+            videoView.setVisibility(View.VISIBLE);
+        }
+        if (youtubeWebView != null) {
+            youtubeWebView.setVisibility(View.GONE);
+        }
+        if (gradientOverlay != null) {
+            gradientOverlay.setVisibility(View.VISIBLE);
+        }
+        if (controlPanel != null) {
+            controlPanel.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void showYouTubePlayerUi() {
+        if (videoView != null) {
+            videoView.setVisibility(View.GONE);
+        }
+        if (youtubeWebView != null) {
+            youtubeWebView.setVisibility(View.VISIBLE);
+        }
+        if (gradientOverlay != null) {
+            gradientOverlay.setVisibility(View.GONE);
+        }
+        if (controlPanel != null) {
+            controlPanel.setVisibility(View.GONE);
+        }
+        if (centerPlayIndicator != null) {
+            centerPlayIndicator.setVisibility(View.GONE);
+        }
+    }
+
+    private boolean shouldBlockYouTubeNavigation(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        if ("about:blank".equals(url)) {
+            return false;
+        }
+        return !MovieMediaUtil.isYouTubeEmbedUrl(url);
+    }
+
+    private void normalizeEmbeddedPlayerUserAgent(WebSettings webSettings) {
+        String currentUserAgent = webSettings.getUserAgentString();
+        if (currentUserAgent == null || currentUserAgent.trim().isEmpty()) {
+            return;
+        }
+
+        String normalizedUserAgent = currentUserAgent
+                .replace("; wv", "")
+                .replace(" wv", "");
+        if (!normalizedUserAgent.equals(currentUserAgent)) {
+            webSettings.setUserAgentString(normalizedUserAgent);
+        }
     }
 
     private void configureSeekBar() {
@@ -393,7 +549,7 @@ public class MovieDetailActivity extends AppCompatActivity {
                     return;
                 }
 
-                long newPosition = Math.max(0L, Math.min(videoDurationMs, seekBar.getProgress()));
+                long newPosition = Math.max(0L, Math.min(getEffectiveDurationMs(), seekBar.getProgress()));
                 seekToPosition(newPosition);
                 if (isPlaying) {
                     startProgressUpdates();
@@ -430,9 +586,9 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         CartManager cartManager = CartManager.getInstance();
         if (cartManager.addToCart(currentMovie)) {
-            Utils.showToast(this, "已添加到购物车: " + currentMovie.getTitle());
+            Utils.showToast(this, "Added to cart: " + currentMovie.getTitle());
         } else {
-            Utils.showToast(this, "该电影已在购物车中");
+            Utils.showToast(this, "This movie is already in your cart");
         }
     }
 
@@ -441,25 +597,25 @@ public class MovieDetailActivity extends AppCompatActivity {
      */
     private void buyNow() {
         if (currentMovie == null) {
-            Utils.showToast(this, "电影信息错误");
+            Utils.showToast(this, "Movie information is invalid");
             return;
         }
 
         if (currentUser == null) {
-            Utils.showToast(this, "请先登录");
+            Utils.showToast(this, "Please sign in first");
             return;
         }
 
         if (currentUser.getCredits() < currentMovie.getPrice()) {
-            Utils.showToast(this, "积分不足，无法购买");
+            Utils.showToast(this, "You do not have enough credits to purchase this movie");
             return;
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("确认购买")
-                .setMessage("确定要花费 " + currentMovie.getPrice() + " 积分购买《" + currentMovie.getTitle() + "》吗？")
-                .setPositiveButton("确认购买", (dialog, which) -> processPurchase())
-                .setNegativeButton("取消", null)
+                .setTitle("Confirm Purchase")
+                .setMessage("Spend " + currentMovie.getPrice() + " credits to purchase \"" + currentMovie.getTitle() + "\"?")
+                .setPositiveButton("Confirm", (dialog, which) -> processPurchase())
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -489,7 +645,7 @@ public class MovieDetailActivity extends AppCompatActivity {
      * 创建订单记录
      */
     private void createOrderRecord(int remainingCredits) {
-        Utils.showToast(this, "购买成功！积分余额：" + remainingCredits);
+        Utils.showToast(this, "Purchase successful. Remaining credits: " + remainingCredits);
         finish();
     }
 
@@ -607,8 +763,9 @@ public class MovieDetailActivity extends AppCompatActivity {
         long currentPosition = Math.max(0L, player.getCurrentPosition());
         currentTimeText.setText(formatTime(currentPosition));
 
-        if (videoDurationMs > 0L) {
-            int boundedPosition = (int) Math.min(currentPosition, videoDurationMs);
+        long effectiveDurationMs = getEffectiveDurationMs();
+        if (effectiveDurationMs > 0L) {
+            int boundedPosition = (int) Math.min(currentPosition, effectiveDurationMs);
             seekBar.setProgress(boundedPosition);
         } else {
             seekBar.setProgress(0);
@@ -620,7 +777,10 @@ public class MovieDetailActivity extends AppCompatActivity {
             return;
         }
 
-        long boundedPositionMs = Math.max(0L, Math.min(videoDurationMs, targetPositionMs));
+        long effectiveDurationMs = getEffectiveDurationMs();
+        long boundedPositionMs = effectiveDurationMs > 0L
+                ? Math.max(0L, Math.min(effectiveDurationMs, targetPositionMs))
+                : Math.max(0L, targetPositionMs);
         pendingSeekPositionMs = boundedPositionMs;
         seekBar.setProgress((int) Math.min(boundedPositionMs, Integer.MAX_VALUE));
         currentTimeText.setText(formatTime(boundedPositionMs));
@@ -680,13 +840,40 @@ public class MovieDetailActivity extends AppCompatActivity {
     }
 
     private boolean canSeek() {
-        return player != null && isPrepared && videoDurationMs > 0L;
+        return player != null
+                && getEffectiveDurationMs() > 0L
+                && (isPrepared
+                || player.getPlaybackState() == Player.STATE_READY
+                || player.isCurrentMediaItemSeekable());
+    }
+
+    private long getEffectiveDurationMs() {
+        if (videoDurationMs > 0L) {
+            return videoDurationMs;
+        }
+        if (player == null) {
+            return 0L;
+        }
+        long playerDurationMs = player.getDuration();
+        return playerDurationMs == C.TIME_UNSET || playerDurationMs <= 0L ? 0L : playerDurationMs;
+    }
+
+    private long getCurrentPlaybackPositionMs() {
+        long playerPositionMs = player == null ? 0L : Math.max(0L, player.getCurrentPosition());
+        long seekBarPositionMs = seekBar == null ? 0L : Math.max(0L, seekBar.getProgress());
+
+        if (pendingSeekPositionMs != C.TIME_UNSET) {
+            return pendingSeekPositionMs;
+        }
+
+        return Math.max(playerPositionMs, seekBarPositionMs);
     }
 
     private void resetPlayerState() {
         isPlaying = false;
         isPrepared = false;
         isUserSeeking = false;
+        isEmbeddedWebPlayer = false;
         videoDurationMs = 0L;
         pendingSeekPositionMs = C.TIME_UNSET;
         stopProgressUpdates();
@@ -716,6 +903,15 @@ public class MovieDetailActivity extends AppCompatActivity {
         }
         if (videoView != null) {
             videoView.setPlayer(null);
+            videoView.setVisibility(View.VISIBLE);
+        }
+        if (youtubeWebView != null) {
+            youtubeWebView.stopLoading();
+            youtubeWebView.loadUrl("about:blank");
+            youtubeWebView.setVisibility(View.GONE);
+        }
+        if (gradientOverlay != null) {
+            gradientOverlay.setVisibility(View.VISIBLE);
         }
     }
 
@@ -741,13 +937,13 @@ public class MovieDetailActivity extends AppCompatActivity {
     private File copyRawVideoToCache(int rawResId) throws IOException {
         File videoCacheDir = new File(getCacheDir(), "video_cache");
         if (!videoCacheDir.exists() && !videoCacheDir.mkdirs()) {
-            throw new IOException("无法创建视频缓存目录");
+            throw new IOException("Unable to create the video cache directory");
         }
 
         String resourceName = getResources().getResourceEntryName(rawResId);
         File cachedVideoFile = new File(videoCacheDir, resourceName + ".mp4");
         if (cachedVideoFile.exists() && !cachedVideoFile.delete()) {
-            throw new IOException("无法覆盖旧的视频缓存文件");
+            throw new IOException("Unable to replace the old cached video file");
         }
 
         try (InputStream inputStream = getResources().openRawResource(rawResId);
@@ -825,16 +1021,16 @@ public class MovieDetailActivity extends AppCompatActivity {
     private String buildPlaybackErrorMessage(PlaybackException error) {
         int errorCode = error.errorCode;
         if (errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND) {
-            return "视频文件不存在，请确认 raw 目录中的视频资源是否正确。";
+            return "The video file was not found. Please verify the resource in the raw directory.";
         }
         if (errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED
                 || errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED) {
-            return "视频解码失败，请确认视频编码格式受设备支持。";
+            return "Video decoding failed. Please make sure the video format is supported by the device.";
         }
         if (errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED
                 || errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
-            return "视频加载失败，请稍后重试。";
+            return "Failed to load the video. Please try again later.";
         }
-        return "视频播放失败：" + error.getErrorCodeName();
+        return "Video playback failed: " + error.getErrorCodeName();
     }
 }

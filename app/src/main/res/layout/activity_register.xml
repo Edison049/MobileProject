@@ -20,14 +20,14 @@
             android:layout_height="100dp"
             android:layout_marginBottom="24dp"
             android:src="@drawable/ic_launcher_foreground"
-            android:contentDescription="应用Logo" />
+            android:contentDescription="App logo" />
 
         <!-- 标题 -->
         <TextView
             android:id="@+id/title_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="创建账户"
+            android:text="Create Account"
             android:textSize="24sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
@@ -37,7 +37,7 @@
             android:id="@+id/subtitle_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="加入我们的电影世界"
+            android:text="Join our movie community"
             android:textSize="14sp"
             android:textColor="#B3B3B3"
             android:layout_marginBottom="32dp" />
@@ -56,7 +56,7 @@
                 android:id="@+id/name_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="姓名"
+                android:hint="Name"
                 android:inputType="textPersonName"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#B3B3B3" />
@@ -77,7 +77,7 @@
                 android:id="@+id/age_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="年龄"
+                android:hint="Age"
                 android:inputType="number"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#B3B3B3" />
@@ -98,7 +98,7 @@
                 android:id="@+id/email_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="邮箱地址"
+                android:hint="Email address"
                 android:inputType="textEmailAddress"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#B3B3B3" />
@@ -121,7 +121,7 @@
                 android:id="@+id/password_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="密码"
+                android:hint="Password"
                 android:inputType="textPassword"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#B3B3B3" />
@@ -133,7 +133,7 @@
             android:id="@+id/register_button"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="创建账户"
+            android:text="Create Account"
             android:textSize="16sp"
             android:textStyle="bold"
             android:backgroundTint="#E50914"
@@ -146,7 +146,7 @@
             android:id="@+id/login_link"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="已有账户？立即登录"
+            android:text="Already have an account? Sign in"
             android:textColor="#E50914"
             android:textSize="14sp"
             android:padding="8dp"

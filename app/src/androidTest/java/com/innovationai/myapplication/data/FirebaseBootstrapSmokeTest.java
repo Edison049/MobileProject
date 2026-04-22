@@ -2,6 +2,7 @@ package com.innovationai.myapplication.data;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -49,7 +50,10 @@ public class FirebaseBootstrapSmokeTest {
         List<Movie> movies = awaitData(callback -> repository.loadMovies(context, callback));
         assertNotNull(movies);
         assertFalse(movies.isEmpty());
-        assertTrue(containsMovie(movies, "movie_avengers4"));
+        Movie avengersMovie = findMovie(movies, "movie_avengers4");
+        assertNotNull(avengersMovie);
+        assertEquals("Avengers: Endgame", avengersMovie.getTitle());
+        assertEquals("Action", avengersMovie.getGenre());
     }
 
     private interface DataRequest<T> {
@@ -107,13 +111,13 @@ public class FirebaseBootstrapSmokeTest {
         }
     }
 
-    private boolean containsMovie(List<Movie> movies, String movieId) {
+    private Movie findMovie(List<Movie> movies, String movieId) {
         for (Movie movie : movies) {
             if (movie != null && movieId.equals(movie.getId())) {
-                return true;
+                return movie;
             }
         }
-        return false;
+        return null;
     }
 
     private void assertEqualsIgnoreCase(String expected, String actual) {

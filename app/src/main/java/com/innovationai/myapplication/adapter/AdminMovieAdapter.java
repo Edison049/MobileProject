@@ -67,7 +67,7 @@ public class AdminMovieAdapter extends RecyclerView.Adapter<AdminMovieAdapter.Mo
 
         void bind(Movie movie) {
             titleText.setText(movie.getTitle());
-            subtitleText.setText(movie.getGenre() + " | " + movie.getPrice() + "积分");
+            subtitleText.setText(movie.getGenre() + " | " + movie.getPrice() + " credits");
             deleteButton.setOnClickListener(v -> listener.onDeleteMovie(movie));
         }
     }

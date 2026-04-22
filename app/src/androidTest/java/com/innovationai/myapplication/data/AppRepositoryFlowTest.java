@@ -18,8 +18,8 @@ import com.innovationai.myapplication.util.MovieMediaUtil;
 import com.innovationai.myapplication.util.SessionManager;
 
 import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
-import org.junit.Assume;
 import org.junit.runner.RunWith;
 
 import java.util.List;
@@ -37,10 +37,15 @@ public class AppRepositoryFlowTest {
     @Before
     public void setUp() throws InterruptedException {
         context = ApplicationProvider.getApplicationContext();
+        repository.setForceLocalModeForTesting(true);
         LocalDataStore.getInstance().resetForTesting(context);
         SessionManager.clearSession(context);
         awaitAction(callback -> repository.initialize(context, callback));
-        Assume.assumeFalse(repository.isUsingFirebase(context));
+    }
+
+    @After
+    public void tearDown() {
+        repository.setForceLocalModeForTesting(false);
     }
 
     @Test
@@ -80,7 +85,7 @@ public class AppRepositoryFlowTest {
         repository.logout(context);
         String loginError = this.<User>awaitError(callback ->
                 repository.login(context, "tester@example.com", "tester123", callback));
-        assertTrue(loginError.contains("不存在") || loginError.contains("停用"));
+        assertTrue(loginError.contains("not found") || loginError.contains("deactivated"));
 
         User adminAfterDelete = awaitData(callback ->
                 repository.login(context, Constants.ADMIN_USER_EMAIL, Constants.ADMIN_USER_PASSWORD, callback));
@@ -91,9 +96,9 @@ public class AppRepositoryFlowTest {
 
         Movie movie = new Movie();
         movie.setId("movie_test_admin");
-        movie.setTitle("管理员测试电影");
-        movie.setDescription("用于验证管理员新增和删除电影流程");
-        movie.setGenre("动作");
+        movie.setTitle("Admin Test Movie");
+        movie.setDescription("Used to verify the admin add and delete movie flow.");
+        movie.setGenre("Action");
         movie.setDirector("Codex");
         movie.setCast("Tester");
         movie.setPrice(88);
@@ -104,12 +109,12 @@ public class AppRepositoryFlowTest {
         awaitAction(callback -> repository.addMovie(context, movie, callback));
         List<Movie> moviesAfterAdd = awaitData(callback -> repository.loadMovies(context, callback));
         assertEquals(initialCount + 1, moviesAfterAdd.size());
-        assertTrue(containsMovie(moviesAfterAdd, "管理员测试电影"));
+        assertTrue(containsMovie(moviesAfterAdd, "Admin Test Movie"));
 
         awaitAction(callback -> repository.deleteMovie(context, movie.getId(), callback));
         List<Movie> moviesAfterDelete = awaitData(callback -> repository.loadMovies(context, callback));
         assertEquals(initialCount, moviesAfterDelete.size());
-        assertFalse(containsMovie(moviesAfterDelete, "管理员测试电影"));
+        assertFalse(containsMovie(moviesAfterDelete, "Admin Test Movie"));
     }
 
     @Test
@@ -132,6 +137,28 @@ public class AppRepositoryFlowTest {
         assertEquals(1, orders.size());
         assertEquals(movies.get(0).getPrice(), orders.get(0).getTotalAmount());
         assertEquals(1, orders.get(0).getMovies().size());
+    }
+
+    @Test
+    public void addedMovieShouldKeepDescriptionAndVideoUrl() throws InterruptedException {
+        Movie movie = new Movie();
+        movie.setId("movie_description_test");
+        movie.setTitle("Description Retention Test");
+        movie.setDescription("This synopsis should still appear on the detail page after the movie is added.");
+        movie.setGenre("Drama");
+        movie.setDirector("Codex");
+        movie.setCast("Tester");
+        movie.setPrice(66);
+        movie.setRating(8.1f);
+        movie.setPosterUrl(MovieMediaUtil.drawableRef("ic_launcher_foreground"));
+        movie.setPreviewVideoUrl("https://youtu.be/FXJZ3n6x7Nw?si=PR5NpsNeZsTezXhK");
+
+        awaitAction(callback -> repository.addMovie(context, movie, callback));
+        Movie loadedMovie = awaitData(callback -> repository.loadMovieById(context, movie.getId(), callback));
+
+        assertNotNull(loadedMovie);
+        assertEquals(movie.getDescription(), loadedMovie.getDescription());
+        assertEquals(movie.getPreviewVideoUrl(), loadedMovie.getPreviewVideoUrl());
     }
 
     private interface DataRequest<T> {

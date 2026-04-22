@@ -127,9 +127,9 @@ public class NetworkUtil {
     public static void showNetworkStatus(Context context) {
         if (isNetworkAvailable(context)) {
             String networkType = getNetworkType(context);
-            Utils.showToast(context, "网络连接: " + networkType);
+            Utils.showToast(context, "Network connection: " + networkType);
         } else {
-            Utils.showToast(context, "网络不可用，请检查网络设置");
+            Utils.showToast(context, "Network unavailable. Please check your settings.");
         }
     }
 }
